@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # https://chatbotslife.com/building-a-basic-pysc2-agent-b109cde1477c
 from pysc2.agents import base_agent
 from pysc2.lib import actions
@@ -5,6 +6,7 @@ from pysc2.lib import features
 from pprint import pprint
 import smart_agent
 import simple_agent
+import loser_agent
 import time
 
 
@@ -12,6 +14,7 @@ class AgentSelector(base_agent.BaseAgent):
     def __init__(self):
         super().__init__()
         self.agents = [simple_agent.SimpleAgent(), smart_agent.SmartAgent()]
+        # self.agents = [loser_agent.LoserAgent(True)]
         self.stepsPerAgent = 100
         self.curAgentIndex = 0
         self.curStep = 0
