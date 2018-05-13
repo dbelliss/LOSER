@@ -123,12 +123,12 @@ class QLearningTable:
         self.epsilon = e_greedy
         self.q_table = pd.DataFrame(columns=self.actions, dtype=np.float64)
 
-    def choose_action(self, observation):
-        self.check_state_exist(observation)
+    def choose_action(self, time_stepervation):
+        self.check_state_exist(time_stepervation)
 
         if np.random.uniform() < self.epsilon:
             # choose best action
-            state_action = self.q_table.ix[observation, :]
+            state_action = self.q_table.ix[time_stepervation, :]
 
             # some actions have the same value
             state_action = state_action.reindex(np.random.permutation(state_action.index))
@@ -169,7 +169,7 @@ class SmartAgent(base_agent.BaseAgent):
         self.previous_action = None
         self.previous_state = None
 
-    
+
     def ResetBeliefState(self):
         self.previous_action = None
 
@@ -180,12 +180,12 @@ class SmartAgent(base_agent.BaseAgent):
 
         return [x + x_distance, y + y_distance]
 
-    def step(self, obs):
-        super(SmartAgent, self).step(obs)
-        player_y, player_x = (obs.observation['minimap'][_PLAYER_RELATIVE] == _PLAYER_SELF).nonzero()
+    def step(self, time_step):
+        super(SmartAgent, self).step(time_step)
+        player_y, player_x = (time_step.observation['minimap'][_PLAYER_RELATIVE] == _PLAYER_SELF).nonzero()
         self.base_top_left = 1 if player_y.any() and player_y.mean() <= 31 else 0
 
-        unit_type = obs.observation['screen'][_UNIT_TYPE]
+        unit_type = time_step.observation['screen'][_UNIT_TYPE]
 
         overlord_y, overlord_x = (unit_type == OVERLORD).nonzero()
         overlord_count = 1 if overlord_y.any() else 0
@@ -196,18 +196,18 @@ class SmartAgent(base_agent.BaseAgent):
         roachwarren_y, roachwarren_x = (unit_type == ROACH_WARREN).nonzero()
         roachwarren_count = 1 if roachwarren_y.any() else 0
 
-        supply_limit = obs.observation['player'][4]
-        army_supply = obs.observation['player'][5]
+        food_used = time_step.observation['player'][4]
+        food_army = time_step.observation['player'][5]
 
-        killed_unit_score = obs.observation['score_cumulative'][5]
-        killed_building_score = obs.observation['score_cumulative'][6]
+        killed_unit_score = time_step.observation['score_cumulative'][5]
+        killed_building_score = time_step.observation['score_cumulative'][6]
 
         current_state = [
             overlord_count,
             spawningpool_count,
             roachwarren_count,
-            supply_limit,
-            army_supply,
+            food_used,
+            food_army,
         ]
 
         if self.previous_action is not None:
@@ -232,9 +232,9 @@ class SmartAgent(base_agent.BaseAgent):
         if smart_action == ACTION_DO_NOTHING:
             return actions.FunctionCall(_NO_OP, [])
 
-        
+
         elif smart_action == ACTION_SELECT_LARVA:
-            unit_type = obs.observation['screen'][_UNIT_TYPE]
+            unit_type = time_step.observation['screen'][_UNIT_TYPE]
             unit_y, unit_x = (unit_type == LARVA).nonzero()
 
             if unit_y.any():
@@ -243,9 +243,9 @@ class SmartAgent(base_agent.BaseAgent):
 
                 return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
 
-        
+
         elif smart_action == ACTION_SELECT_DRONE:
-            unit_type = obs.observation['screen'][_UNIT_TYPE]
+            unit_type = time_step.observation['screen'][_UNIT_TYPE]
             unit_y, unit_x = (unit_type == DRONE).nonzero()
 
             if unit_y.any():
@@ -257,8 +257,8 @@ class SmartAgent(base_agent.BaseAgent):
 
 
         elif smart_action == ACTION_BUILD_SPAWNINGPOOL:
-            if _BUILD_SPAWNING_POOL in obs.observation['available_actions']:
-                unit_type = obs.observation['screen'][_UNIT_TYPE]
+            if _BUILD_SPAWNING_POOL in time_step.observation['available_actions']:
+                unit_type = time_step.observation['screen'][_UNIT_TYPE]
                 unit_y, unit_x = (unit_type == DRONE).nonzero()
 
                 if unit_y.any():
@@ -273,8 +273,8 @@ class SmartAgent(base_agent.BaseAgent):
 
 
         elif smart_action == ACTION_BUILD_ROACHWARREN:
-            if _BUILD_ROACHWARREN in obs.observation['available_actions']:
-                unit_type = obs.observation['screen'][_UNIT_TYPE]
+            if _BUILD_ROACHWARREN in time_step.observation['available_actions']:
+                unit_type = time_step.observation['screen'][_UNIT_TYPE]
                 unit_y, unit_x = (unit_type == DRONE).nonzero()
 
                 if unit_y.any():
@@ -289,24 +289,24 @@ class SmartAgent(base_agent.BaseAgent):
 
 
         elif smart_action == ACTION_TRAIN_OVERLORD:
-            if _TRAIN_OVERLORD in obs.observation['available_actions']:
+            if _TRAIN_OVERLORD in time_step.observation['available_actions']:
                 return actions.FunctionCall(_TRAIN_OVERLORD, [_NOT_QUEUED])
 
 
         elif smart_action == ACTION_TRAIN_ZERGLING:
-            if _TRAIN_ZERGLING in obs.observation['available_actions']:
+            if _TRAIN_ZERGLING in time_step.observation['available_actions']:
                 return actions.FunctionCall(_TRAIN_ZERGLING, [_QUEUED])
 
         elif smart_action == ACTION_TRAIN_ROACH:
-            if _TRAIN_ROACH in obs.observation['available_actions']:
+            if _TRAIN_ROACH in time_step.observation['available_actions']:
                 return actions.FunctionCall(_TRAIN_ROACH, [_QUEUED])
 
         elif smart_action == ACTION_SELECT_ARMY:
-            if _SELECT_ARMY in obs.observation['available_actions']:
+            if _SELECT_ARMY in time_step.observation['available_actions']:
                 return actions.FunctionCall(_SELECT_ARMY, [_NOT_QUEUED])
 
         elif smart_action == ACTION_ATTACK:
-            if _ATTACK_MINIMAP in obs.observation["available_actions"]:
+            if _ATTACK_MINIMAP in time_step.observation["available_actions"]:
                 if self.base_top_left:
                     return actions.FunctionCall(_ATTACK_MINIMAP, [_NOT_QUEUED, [39, 45]])
 
