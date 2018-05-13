@@ -97,26 +97,24 @@ class SimpleAgent(base_agent.BaseAgent):
     def transformLocation(self, x, x_distance, y, y_distance):
         if not self.base_top_left:
             return [x - x_distance, y - y_distance]
-        
+
         return [x + x_distance, y + y_distance]
-    
+
     def ResetBeliefState(self):
         self.larva_selected = False
         self.drone_select = False
         self.army_selected = False
 
-    def step(self, obs):
-        super(SimpleAgent, self).step(obs)
-        
-        # time.sleep(0.5)
-        
+    def step(self, time_step):
+        super(SimpleAgent, self).step(time_step)
+
         if self.base_top_left is None:
-            player_y, player_x = (obs.observation["minimap"][_PLAYER_RELATIVE] == _PLAYER_SELF).nonzero()
+            player_y, player_x = (time_step.observation["minimap"][_PLAYER_RELATIVE] == _PLAYER_SELF).nonzero()
             self.base_top_left = player_y.mean() <= 31
-            
+
         if not self.overlord_built:
             if not self.larva_selected:
-                unit_type = obs.observation["screen"][_UNIT_TYPE]
+                unit_type = time_step.observation["screen"][_UNIT_TYPE]
                 unit_y, unit_x = (unit_type == LARVA).nonzero()
 
                 target = [unit_x[0], unit_y[0]]
@@ -124,9 +122,9 @@ class SimpleAgent(base_agent.BaseAgent):
                 self.larva_selected = True
 
                 return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
-            elif TRAIN_OVERLORD in obs.observation["available_actions"]:
+            elif TRAIN_OVERLORD in time_step.observation["available_actions"]:
                 # Overlord can be built, and has not been built, so built it
-                unit_type = obs.observation["screen"][_UNIT_TYPE]
+                unit_type = time_step.observation["screen"][_UNIT_TYPE]
                 unit_y, unit_x = (unit_type == HATCHERY).nonzero()
 
                 self.overlord_built = True
@@ -134,7 +132,7 @@ class SimpleAgent(base_agent.BaseAgent):
                 return actions.FunctionCall(TRAIN_OVERLORD, [_QUEUED])
         elif not self.spawning_pool_built:
             if not self.drone_selected:
-                unit_type = obs.observation["screen"][_UNIT_TYPE]
+                unit_type = time_step.observation["screen"][_UNIT_TYPE]
                 unit_y, unit_x = (unit_type == DRONE).nonzero()
 
                 target = [unit_x[0], unit_y[0]]
@@ -142,25 +140,25 @@ class SimpleAgent(base_agent.BaseAgent):
                 self.drone_selected = True
 
                 return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
-            elif BUILD_SPAWNING_POOL in obs.observation["available_actions"]:
-                unit_type = obs.observation["screen"][_UNIT_TYPE]
+            elif BUILD_SPAWNING_POOL in time_step.observation["available_actions"]:
+                unit_type = time_step.observation["screen"][_UNIT_TYPE]
                 unit_y, unit_x = (unit_type == HATCHERY).nonzero()
-                
+
                 target = self.transformLocation(int(unit_x.mean()), 20, int(unit_y.mean()), 0)
                 self.drone_selected = False
                 self.spawning_pool_built = True
-                
+
                 return actions.FunctionCall(BUILD_SPAWNING_POOL, [_NOT_QUEUED, target])
         elif not self.spawning_pool_rallied:
             if not self.spawning_pool_selected:
-                unit_type = obs.observation["screen"][_UNIT_TYPE]
+                unit_type = time_step.observation["screen"][_UNIT_TYPE]
                 unit_y, unit_x = (unit_type == SPAWNING_POOL).nonzero()
-                
+
                 if unit_y.any():
                     target = [int(unit_x.mean()), int(unit_y.mean())]
-                
+
                     self.spawning_pool_selected = True
-                
+
                     return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
             else:
                 self.spawning_pool_rallied = True
@@ -170,9 +168,9 @@ class SimpleAgent(base_agent.BaseAgent):
                 #     return actions.FunctionCall(_RALLY_UNITS_MINIMAP, [_NOT_QUEUED, [29, 21]])
                 #
                 # return actions.FunctionCall(_RALLY_UNITS_MINIMAP, [_NOT_QUEUED, [29, 46]])
-        elif obs.observation["player"][_SUPPLY_USED] < obs.observation["player"][_SUPPLY_MAX]:
+        elif time_step.observation["player"][_SUPPLY_USED] < time_step.observation["player"][_SUPPLY_MAX]:
             if not self.larva_selected:
-                unit_type = obs.observation["screen"][_UNIT_TYPE]
+                unit_type = time_step.observation["screen"][_UNIT_TYPE]
                 unit_y, unit_x = (unit_type == LARVA).nonzero()
                 if (len(unit_x) == 0):
                     # No larva at the moment
@@ -183,23 +181,23 @@ class SimpleAgent(base_agent.BaseAgent):
 
                 return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
 
-            elif TRAIN_ZERGLING in obs.observation["available_actions"]:
+            elif TRAIN_ZERGLING in time_step.observation["available_actions"]:
                 self.larva_selected = False
                 return actions.FunctionCall(TRAIN_ZERGLING, [_QUEUED])
         elif not self.army_rallied:
             if not self.army_selected:
-                if _SELECT_ARMY in obs.observation["available_actions"]:
+                if _SELECT_ARMY in time_step.observation["available_actions"]:
                     self.army_selected = True
                     self.spawning_pool_selected = False
-                
+
                     return actions.FunctionCall(_SELECT_ARMY, [_NOT_QUEUED])
-            elif _ATTACK_MINIMAP in obs.observation["available_actions"]:
+            elif _ATTACK_MINIMAP in time_step.observation["available_actions"]:
                 self.army_rallied = True
                 self.army_selected = False
-            
+
                 if self.base_top_left:
                     return actions.FunctionCall(_ATTACK_MINIMAP, [_NOT_QUEUED, [39, 45]])
-            
+
                 return actions.FunctionCall(_ATTACK_MINIMAP, [_NOT_QUEUED, [21, 24]])
 
         return actions.FunctionCall(_NOOP, [])
