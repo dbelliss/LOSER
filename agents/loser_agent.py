@@ -84,6 +84,14 @@ _NUM_MINERALS = 1
 _NUM_VESPENE = 2
 _SUPPLY_MAX = 4
 _SUPPLY_USED = 3
+_ARMY_SUPPLY = 5
+_WORKER_SUPPLY = 6
+_IDLE_WORKERS = 7
+_ARMY_COUNT = 8
+_WARP_GATE_COUNT = 9
+_LARVA_COUNT = 10
+
+
 _NOT_QUEUED = [0]
 _QUEUED = [1]
 
@@ -117,8 +125,6 @@ class LoserAgent(base_agent.BaseAgent):
         self.not_researched = 0  # If an upgrade is not being researched and has not been researched
 
         # Number of ground unit types
-        self.num_larva = None  # number of larva
-        self.num_drones = None  # number of drones
         self.num_queens = None  # number of queens
         self.num_zergling = None  # number of zergling
         self.num_banelings = None  # number of banelings
@@ -160,38 +166,14 @@ class LoserAgent(base_agent.BaseAgent):
         self.step_num += 1
         self.obs = time_step.observation
         super().step(time_step)
-        self.log("Step: " + str(self.step_num))
-        self.log("Minerals: " + str(self.cur_minerals))
-        self.log("Vespene: " + str(self.cur_vespene))
-        self.log("Cur Supply: " + str(self.cur_supply))
-        self.log("Max Supply: " + str(self.max_supply))
+        # self.log("Step: " + str(self.step_num))
+        # self.log("Minerals: " + str(self.cur_minerals))
+        # self.log("Vespene: " + str(self.cur_vespene))
+        # self.log("Cur Supply: " + str(self.cur_supply))
+        # self.log("Max Supply: " + str(self.max_supply))
+        # self.log("Num drones: " + str(self.num_drones))
+        # self.log("Num larva: " + str(self.num_larva))
         return actions.FunctionCall(_NOOP, [])
-
-    def transformLocation(self, x, x_distance, y, y_distance):
-        if not self.base_top_left:
-            return [x - x_distance, y - y_distance]
-
-        return [x + x_distance, y + y_distance]
-
-    def ResetBeliefState(self):
-        self.larva_selected = False
-        self.drone_select = False
-        self.army_selected = False
-
-    def get_cur_supply_usage(self):
-        pass
-
-    def get_max_supply_usage(self):
-        pass
-
-    def get_num_of_unit(self, unit_id):
-        pass
-
-
-
-    def select_all_army_units(self):
-        pass
-
 
     @property
     def cur_minerals(self):
@@ -214,13 +196,18 @@ class LoserAgent(base_agent.BaseAgent):
         """Get the max supply"""
         return self.obs["player"][_SUPPLY_MAX]
 
+    @property
+    def num_drones(self):
+        """Get the current amount of drones"""
+        return self.obs["player"][_WORKER_SUPPLY]
+
+    @property
+    def num_larva(self):
+        """Get the current amount of larva"""
+         # FIXME: does not seem to work as expected
+        return self.obs["player"][_LARVA_COUNT]
 
     def log(self, data):
-        """Log the given string to the logfile if this agent is set to log information and logfile is below 1 megabyte"""
+        """Log the data to the logfile if this agent is set to log information and logfile is below 1 megabyte"""
         if self.is_logging and os.path.getsize(self.log_file_name) < 1000000:
             self.log_file.write(data + "\n")
-
-
-
-
-
