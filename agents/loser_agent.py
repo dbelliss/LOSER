@@ -3,7 +3,7 @@ from pysc2.agents import base_agent
 from pysc2.lib import actions
 from pysc2.lib import features
 from pprint import pprint
-from time import gmtime, strftime
+from time import gmtime, strftime, localtime
 import os
 
 import time
@@ -113,7 +113,11 @@ class LoserAgent(base_agent.BaseAgent):
         self.is_logging = is_logging
         self.step_num = 0
         if self.is_logging:
-            self.log_file_name = "./logs/" + strftime("%Y-%m-%d %H:%M:%S",  gmtime())
+
+            # Make logs directory if it doesn't exist
+            if not os.path.exists("./logs"):
+                os.mkdir("./logs")
+            self.log_file_name = "./logs/" + strftime("%Y-%m-%d %H:%M:%S", localtime())
             self.log_file = open(self.log_file_name, "w+")  # Create log file based on the time
 
         # Observation
@@ -166,14 +170,17 @@ class LoserAgent(base_agent.BaseAgent):
         self.step_num += 1
         self.obs = time_step.observation
         super().step(time_step)
-        # self.log("Step: " + str(self.step_num))
-        # self.log("Minerals: " + str(self.cur_minerals))
-        # self.log("Vespene: " + str(self.cur_vespene))
-        # self.log("Cur Supply: " + str(self.cur_supply))
-        # self.log("Max Supply: " + str(self.max_supply))
-        # self.log("Num drones: " + str(self.num_drones))
-        # self.log("Num larva: " + str(self.num_larva))
+        self.log("Step: " + str(self.step_num))
+        self.log("Minerals: " + str(self.cur_minerals))
+        self.log("Vespene: " + str(self.cur_vespene))
+        self.log("Cur Supply: " + str(self.cur_supply))
+        self.log("Max Supply: " + str(self.max_supply))
+        self.log("Num drones: " + str(self.num_drones))
+        self.log("Num larva: " + str(self.num_larva))  # This is still a little buggy
         return actions.FunctionCall(_NOOP, [])
+
+    def ResetBeliefState(self):
+        pass
 
     @property
     def cur_minerals(self):
