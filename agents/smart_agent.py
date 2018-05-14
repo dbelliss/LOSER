@@ -16,6 +16,7 @@ _TRAIN_ROACH = actions.FUNCTIONS.Train_Roach_quick.id
 _TRAIN_OVERLORD = actions.FUNCTIONS.Train_Overlord_quick.id
 _SELECT_LARVA = actions.FUNCTIONS.select_larva.id
 _BUILD_SPAWNING_POOL = actions.FUNCTIONS.Build_SpawningPool_screen.id
+_BUILD_HATCHERY = actions.FUNCTIONS.Build_Hatchery_screen.id
 _BUILD_ROACHWARREN = actions.FUNCTIONS.Build_RoachWarren_screen.id
 _SELECT_ARMY = actions.FUNCTIONS.select_army.id
 _ATTACK_MINIMAP = actions.FUNCTIONS.Attack_minimap.id
@@ -91,6 +92,7 @@ ACTION_SELECT_LARVA = 'selectlarva'
 ACTION_SELECT_DRONE = 'selectdrone'
 ACTION_BUILD_SPAWNINGPOOL = 'buildspawningpool'
 ACTION_BUILD_ROACHWARREN = 'buildroackwarren'
+ACTION_BUILD_HATCHERY = 'buildhatchery'
 ACTION_TRAIN_OVERLORD = 'trainoverlord'
 ACTION_TRAIN_ZERGLING = 'trainzergling'
 ACTION_TRAIN_ROACH = 'trainroach'
@@ -103,6 +105,7 @@ smart_actions = [
     ACTION_SELECT_DRONE,
     ACTION_BUILD_SPAWNINGPOOL,
     ACTION_BUILD_ROACHWARREN,
+    ACTION_BUILD_HATCHERY,
     ACTION_TRAIN_OVERLORD,
     ACTION_TRAIN_ZERGLING,
     ACTION_TRAIN_ROACH,
@@ -207,6 +210,9 @@ class SmartAgent(base_agent.BaseAgent):
         roachwarren_y, roachwarren_x = (unit_type == ROACH_WARREN).nonzero()
         roachwarren_count = 1 if roachwarren_y.any() else 0
 
+        hatchery_y, hatchery_x = (unit_type == HATCHERY).nonzero()
+        hatchery_count = 1 if hatchery_y.any() else 0
+
         food_used = time_step.observation['player'][4]
         food_army = time_step.observation['player'][5]
 
@@ -217,6 +223,7 @@ class SmartAgent(base_agent.BaseAgent):
             overlord_count,
             spawningpool_count,
             roachwarren_count,
+            hatchery_count,
             food_used,
             food_army,
         ]
@@ -297,6 +304,21 @@ class SmartAgent(base_agent.BaseAgent):
                     target[0] = 63 if target[0] > 63 else target[0]
                     target[1] = 63 if target[0] > 63 else target[1]
                     return actions.FunctionCall(_BUILD_ROACHWARREN, [_NOT_QUEUED, target])
+
+        elif smart_action == ACTION_BUILD_HATCHERY:
+            if _BUILD_HATCHERY in time_step.observation['available_actions']:
+                unit_type = time_step.observation['screen'][_UNIT_TYPE]
+                unit_y, unit_x = (unit_type == DRONE).nonzero()
+
+                if unit_y.any():
+                    target = self.transformLocation(int(unit_x.mean()), 50, int(unit_y.mean()), 0)
+
+                    #crappy way of making sure building is in bounds
+                    target[0] = 0 if target[0] < 0 else target[0]
+                    target[1] = 0 if target[1] < 0 else target[1]
+                    target[0] = 63 if target[0] > 63 else target[0]
+                    target[1] = 63 if target[0] > 63 else target[1]
+                    return actions.FunctionCall(_BUILD_HATCHERY, [_NOT_QUEUED, target])
 
 
         elif smart_action == ACTION_TRAIN_OVERLORD:
