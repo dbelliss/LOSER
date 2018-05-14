@@ -113,6 +113,17 @@ smart_actions = [
 KILL_UNIT_REWARD = 0.2
 KILL_BUILDING_REWARD = 0.5
 
+# Bot Fitness= (%creep spread) + (%vision) + econ(# of buildings + active workers - inactive workers - (unspent resources/1000)) + (army size)
+class Fitness:
+    def __init__(self, time_step):
+        self.idle_workers = time_step.observation['player'][7]
+        self.army_count = time_step.observation['player'][9]
+        self.mineral_rate = time_step.observation['score_cumulative'][9]
+        self.vespene_rate = time_step.observation['score_cumulative'][10]
+
+    #Debug print statement for fitness variables
+    def __repr__(self):
+        return f"idle workers: {self.idle_workers} army count: {self.army_count} mineral rate: {self.mineral_rate} vespene rate: {self.vespene_rate}"
 
 # Stolen from https://github.com/MorvanZhou/Reinforcement-learning-with-tensorflow
 class QLearningTable:
