@@ -194,6 +194,11 @@ class SmartAgent(base_agent.BaseAgent):
 
         return [x + x_distance, y + y_distance]
 
+    def getFitnessAction(self, current_state):
+        if self.fitness.idle_workers >= 4:
+            return self.qlearn.choose_action(str(current_state))
+        return None
+
     def step(self, time_step):
         super(SmartAgent, self).step(time_step)
         player_y, player_x = (time_step.observation['minimap'][_PLAYER_RELATIVE] == _PLAYER_SELF).nonzero()
@@ -239,8 +244,16 @@ class SmartAgent(base_agent.BaseAgent):
 
             self.qlearn.learn(str(self.previous_state), self.previous_action, reward, str(current_state))
 
-        rl_action = self.qlearn.choose_action(str(current_state))
-        smart_action = smart_actions[rl_action]
+        # Check current fitness
+        self.fitness = Fitness(time_step)
+        # Get action on current fitness
+        fit_action = self.getFitnessAction(current_state)
+        # Check if fitness action is valid
+        if fit_action is not None:
+            smart_action = smart_actions[fit_action]
+        else:
+            rl_action = self.qlearn.choose_action(str(current_state))
+            smart_action = smart_actions[rl_action]
 
         self.previous_killed_unit_score = killed_unit_score
         self.previous_killed_building_score = killed_building_score
