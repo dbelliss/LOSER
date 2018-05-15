@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-python3.6 -m pysc2.bin.agent --map Simple64 --agent agent_selector.AgentSelector --agent_race Z
-$SHELL
