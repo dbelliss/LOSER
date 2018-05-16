@@ -31,7 +31,7 @@ class LoserAgent(sc2.BotAI):
             # Make logs directory if it doesn't exist
             if not os.path.exists("./logs"):
                 os.mkdir("./logs")
-            self.log_file_name = "./logs/" + strftime("%Y-%m-%d %H:%M:%S", localtime())
+            self.log_file_name = "./logs/" + strftime("%Y-%m-%d %H:%M:%S", localtime()) + ".log"
             self.log_file = open(self.log_file_name, "w+")  # Create log file based on the time
 
 
@@ -86,7 +86,7 @@ class LoserAgent(sc2.BotAI):
     @property
     def get_larva_num(self):
         """Get the current amount of larva"""
-        raise NotImplementedError
+        return self.units(LARVA).amount
 
     def log(self, data):
         """Log the data to the logfile if this agent is set to log information and logfile is below 1 megabyte"""
