@@ -18,8 +18,11 @@ If you have already installed the Dentosal python-sc2 repository, go into the in
 
 `sudo rm -rf sc2/`
 
-### Test that it works
-python3.6 examples/cannon_rush.py
+### Testing
+`python3.6 examples/cannon_rush.py`
+
+### Current issues:
+* After a game ends, the pygame window does not close. You can close it by hitting `ctl+c` in the terminal window that the game was started in
 
 ## Notes
 * All agents derive from the base LoserAgent class
