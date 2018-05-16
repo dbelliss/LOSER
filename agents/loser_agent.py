@@ -1,29 +1,15 @@
 # https://chatbotslife.com/building-a-basic-pysc2-agent-b109cde1477c
-from pysc2.agents import base_agent
-from pysc2.lib import actions
-from pysc2.lib import features
+import sc2
+from sc2 import Race, Difficulty
+from sc2.constants import *
+from sc2.player import Bot, Computer
+
 from pprint import pprint
 from time import gmtime, strftime, localtime
 import os
 
 import time
 
-# Functions
-_NOOP = actions.FUNCTIONS.no_op.id
-_SELECT_POINT = actions.FUNCTIONS.select_point.id
-_RALLY_UNITS_MINIMAP = actions.FUNCTIONS.Rally_Units_minimap.id
-_SELECT_ARMY = actions.FUNCTIONS.select_army.id
-_ATTACK_MINIMAP = actions.FUNCTIONS.Attack_minimap.id
-
-BUILD_SPAWNING_POOL = actions.FUNCTIONS.Build_SpawningPool_screen.id
-TRAIN_OVERLORD = actions.FUNCTIONS.Train_Overlord_quick.id
-TRAIN_DRONE = actions.FUNCTIONS.Train_Drone_quick.id
-TRAIN_ZERGLING = actions.FUNCTIONS.Train_Zergling_quick.id
-SELECT_LARVA = actions.FUNCTIONS.select_larva.id
-
-# Features
-_PLAYER_RELATIVE = features.SCREEN_FEATURES.player_relative.index
-_UNIT_TYPE = features.SCREEN_FEATURES.unit_type.index
 
 # Unit IDs
 HATCHERY = 86
@@ -77,25 +63,10 @@ CHANGELING_MARINE_SHIELD = 14
 CHANGELING_MARINE = 15
 CHANGELING_ZERGLING = 16
 
-
-# Parameters
-_PLAYER_SELF = 0
-_NUM_MINERALS = 1
-_NUM_VESPENE = 2
-_SUPPLY_MAX = 4
-_SUPPLY_USED = 3
-_ARMY_SUPPLY = 5
-_WORKER_SUPPLY = 6
-_IDLE_WORKERS = 7
-_ARMY_COUNT = 8
-_WARP_GATE_COUNT = 9
-_LARVA_COUNT = 10
-
-
 _NOT_QUEUED = [0]
 _QUEUED = [1]
 
-class LoserAgent(base_agent.BaseAgent):
+class LoserAgent(sc2.BotAI):
     base_top_left = None
     overlord_built = False
     larva_selected = False
@@ -111,7 +82,6 @@ class LoserAgent(base_agent.BaseAgent):
 
         # For debugging
         self.is_logging = is_logging
-        self.step_num = 0
         if self.is_logging:
 
             # Make logs directory if it doesn't exist
@@ -120,8 +90,6 @@ class LoserAgent(base_agent.BaseAgent):
             self.log_file_name = "./logs/" + strftime("%Y-%m-%d %H:%M:%S", localtime())
             self.log_file = open(self.log_file_name, "w+")  # Create log file based on the time
 
-        # Observation
-        self.obs = None  # cur observations, step in step function
 
         # Constants
         self.researched = 2  # If an upgrade has been research
@@ -166,55 +134,52 @@ class LoserAgent(base_agent.BaseAgent):
         # standard upgrades
         # TODO
 
-    def step(self, time_step):
-        self.step_num += 1
-        self.obs = time_step.observation
-        super().step(time_step)
-        self.log("Step: " + str(self.step_num))
-        self.log("Minerals: " + str(self.cur_minerals))
-        self.log("Vespene: " + str(self.cur_vespene))
-        self.log("Cur Supply: " + str(self.cur_supply))
-        self.log("Max Supply: " + str(self.max_supply))
-        self.log("Num drones: " + str(self.num_drones))
-        self.log("Num larva: " + str(self.num_larva))  # This is still a little buggy
-        return actions.FunctionCall(_NOOP, [])
+    async def on_step(self, iteration):
+        self.log("Step: " + str(iteration))
 
-    def ResetBeliefState(self):
-        pass
 
     @property
     def cur_minerals(self):
         """Get the current amount of minerals"""
-        return self.obs["player"][_NUM_MINERALS]
+        raise NotImplementedError
 
     @property
     def cur_vespene(self):
         """Get the current amount of vespene"""
-        return self.obs["player"][_NUM_VESPENE]
+        raise NotImplementedError
 
 
     @property
     def cur_supply(self):
         """Get the current amount of supply"""
-        return self.obs["player"][_SUPPLY_USED]
+        raise NotImplementedError
 
     @property
     def max_supply(self):
         """Get the max supply"""
-        return self.obs["player"][_SUPPLY_MAX]
+        raise NotImplementedError
 
     @property
     def num_drones(self):
         """Get the current amount of drones"""
-        return self.obs["player"][_WORKER_SUPPLY]
+        raise NotImplementedError
 
     @property
     def num_larva(self):
         """Get the current amount of larva"""
-         # FIXME: does not seem to work as expected
-        return self.obs["player"][_LARVA_COUNT]
+        raise NotImplementedError
 
     def log(self, data):
         """Log the data to the logfile if this agent is set to log information and logfile is below 1 megabyte"""
         if self.is_logging and os.path.getsize(self.log_file_name) < 1000000:
             self.log_file.write(data + "\n")
+
+def main():
+    # Start game with LoserAgent as the Bot, and begin logging
+    sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
+        Bot(Race.Zerg, LoserAgent(True)),
+        Computer(Race.Protoss, Difficulty.Medium)
+    ], realtime=False)
+
+if __name__ == '__main__':
+    main()
