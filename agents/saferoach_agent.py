@@ -87,7 +87,16 @@ class SafeRoachAgent(sc2.BotAI):
         if iteration == 0:
             await self.chat_send("help me im trapped inside a terrible bot")
 
-        numworker = self.get_idle_workers
+        #code from zerg_rush example, literally just last resort sends all units to attack if hatchery is destroyed
+        # if not self.units(HATCHERY).ready.exists:
+        #     for unit in self.workers | self.units(ZERGLING) | self.units(QUEEN):
+        #         await self.do(unit.attack(self.enemy_start_locations[0]))
+        #     return
+
+        #ideas: spread creep to block expansions, spread to increase zergling defense, patrol with zerglings, spread
+        #with overseer, changelings for vision (most bots/humans don't attack? follow the unit it finds)
+
+        #funny cheese strats with queen?
 
     @property
     def get_minerals(self):
@@ -128,7 +137,7 @@ def main():
     # Start game as SafeRoach as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, SafeRoachAgent(True)),
-        Computer(Race.Protoss, Difficulty.Medium)
+        Computer(Race.Protoss, Difficulty.VeryHard)
     ], realtime=False)
 
 if __name__ == '__main__':
