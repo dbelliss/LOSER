@@ -8,67 +8,11 @@ from pprint import pprint
 from time import gmtime, strftime, localtime
 import os
 
-import loser_agent
+from loser_agent import *
 
 import time
 
-
-# Unit IDs
-HATCHERY = 86
-CREEP_TUMOR = 87
-EXTRACTOR = 88
-SPAWNING_POOL = 89
-EVOLUTION_CHAMBER = 90
-HYDRALISK_DEN = 91
-SPIRE = 92
-ULTRALISK_CAVERN = 93
-INFESTATION_PIT = 94
-NYDUS_NETWORK = 95
-BANELING_NEST = 96
-ROACH_WARREN = 97
-SPINE_CRAWLER = 98
-SPORE_CRAWLER = 99
-LAIR = 100
-HIVE = 101
-GREATER_SPIRE = 102
-EGG = 103
-DRONE = 104
-ZERGLING = 105
-OVERLORD = 106
-HYDRALISK = 107
-MUTALISK = 108
-ULTRALISK = 109
-ROACH = 110
-INFESTOR = 111
-CORRUPTOR = 112
-BROOD_LOAD_COCOON = 113
-BROOD_LORD = 114
-BANELING_BURROWED = 115
-DRONE_BURROWED = 116
-HYDRALISK_BURROWED = 117
-ROACH_BURROWED = 118
-ZERGLING_BURROWED = 119
-INFESTOR_TERRAN_BURROWED = 120
-QUEENBURROWED = 125
-QUEEN = 126
-INFESTOR_BURROWED = 127
-OVERLORD_COCOON = 128
-OVERSEER = 129
-LARVA = 151
-
-INFESTOR_TERRAN = 7
-BANELING_COCOON = 8
-BANELING = 9
-CHANGELING = 12
-CHANGELING_ZEALOT = 13
-CHANGELING_MARINE_SHIELD = 14
-CHANGELING_MARINE = 15
-CHANGELING_ZERGLING = 16
-
-_NOT_QUEUED = [0]
-_QUEUED = [1]
-
-class SafeRoachBuilder(sc2.BotAI):
+class SafeRoachAgent(sc2.BotAI):
     base_top_left = None
     overlord_built = False
     larva_selected = False
@@ -89,7 +33,7 @@ class SafeRoachBuilder(sc2.BotAI):
             # Make logs directory if it doesn't exist
             if not os.path.exists("./logs"):
                 os.mkdir("./logs")
-            self.log_file_name = "./logs/" + strftime("%Y-%m-%d %H:%M:%S", localtime())
+            self.log_file_name = "./logs/" + strftime("%Y-%m-%d %H:%M:%S", localtime()) + ".log"
             self.log_file = open(self.log_file_name, "w+")  # Create log file based on the time
 
 
@@ -99,6 +43,7 @@ class SafeRoachBuilder(sc2.BotAI):
         self.not_researched = 0  # If an upgrade is not being researched and has not been researched
 
         # Number of ground unit types
+        self.num_drones = None
         self.num_queens = None  # number of queens
         self.num_zergling = None  # number of zergling
         self.num_banelings = None  # number of banelings
@@ -137,49 +82,52 @@ class SafeRoachBuilder(sc2.BotAI):
         # TODO
 
     async def on_step(self, iteration):
-        self.log("Step: " + str(iteration))
+        self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
 
+        if iteration == 0:
+            await self.chat_send("help me im trapped inside a terrible bot")
+
+        numworker = self.get_idle_workers
 
     @property
-    def cur_minerals(self):
+    def get_minerals(self):
         """Get the current amount of minerals"""
-        raise NotImplementedError
+        return self.mineral_contents
 
     @property
-    def cur_vespene(self):
+    def get_vespene(self):
         """Get the current amount of vespene"""
-        raise NotImplementedError
-
-
-    @property
-    def cur_supply(self):
-        """Get the current amount of supply"""
-        raise NotImplementedError
+        return self.vespene_contents
 
     @property
-    def max_supply(self):
-        """Get the max supply"""
-        raise NotImplementedError
+    def get_remaining_supply(self):
+        """Get remaining supply"""
+        return self.supply_left
 
     @property
-    def num_drones(self):
+    def get_workers(self):
         """Get the current amount of drones"""
-        raise NotImplementedError
+        return self.workers.amount
 
     @property
-    def num_larva(self):
+    def get_idle_workers(self):
+        return self.workers.idle.amount
+
+    @property
+    def get_larva_num(self):
         """Get the current amount of larva"""
-        raise NotImplementedError
+        return self.units(LARVA).amount
 
     def log(self, data):
         """Log the data to the logfile if this agent is set to log information and logfile is below 1 megabyte"""
         if self.is_logging and os.path.getsize(self.log_file_name) < 1000000:
             self.log_file.write(data + "\n")
 
+
 def main():
-    # Start game with LoserAgent as the Bot, and begin logging
+    # Start game as SafeRoach as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
-        Bot(Race.Zerg, LoserAgent(True)),
+        Bot(Race.Zerg, SafeRoachAgent(True)),
         Computer(Race.Protoss, Difficulty.Medium)
     ], realtime=False)
 
