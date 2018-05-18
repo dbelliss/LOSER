@@ -61,16 +61,16 @@ class SafeRoachAgent(LoserAgent):
         self.num_overseers = None  # number of overseers
         self.num_mutalisks = None  # number of mutalisks
         self.num_corruptors = None  # number of corruptors
-        self.num_brood_lords = None # number of brood lords
+        self.num_brood_lords = None  # number of brood lords
         self.num_vipers = None  # number of vipers
 
         # Number of BUILT units, different from number of unit types
-        self.creeptumors_built = 0 # number of built creep tumors
-        self.drones_built = 0 # number of built drones
-        self.overlords_built = 0 # number of overlords built
-        self.hatcheries_built = 0 # number of hatcheries built
+        self.creeptumors_built = 0  # number of built creep tumors
+        self.drones_built = 0  # number of built drones
+        self.overlords_built = 0  # number of overlords built
+        self.hatcheries_built = 0  # number of hatcheries built
 
-        self.base_build_order_complete = False
+        self.base_build_order_complete = False  # checks if base build order is complete
 
         # non-standard upgrades purchased
         self.can_burrow = None # true if Burrow has been purchased
@@ -109,7 +109,6 @@ class SafeRoachAgent(LoserAgent):
 
         target = self.known_enemy_structures.random_or(self.enemy_start_locations[0]).position
 
-
         for idle_worker in self.workers.idle:
             mf = self.state.mineral_field.closest_to(idle_worker)
             await self.do(idle_worker.gather(mf))
@@ -122,7 +121,6 @@ class SafeRoachAgent(LoserAgent):
             self.hatcheries_built += 1
             location = await self.get_next_expansion()
             await self.build(HATCHERY, near=location)
-
 
         for queen in self.units(QUEEN).idle:
             abilities = await self.get_available_abilities(queen)
@@ -141,41 +139,58 @@ class SafeRoachAgent(LoserAgent):
                 await self.do(tumor(BUILD_CREEPTUMOR_TUMOR, near=tumor))
 
         # strict build order begins here
-        if self.drones_built is 0 and larvae.exists and self.can_afford(DRONE):
-            self.drones_built += 1
-            await self.do(larvae.random.train(DRONE))
+        if self.base_build_order_complete is False:
+            if self.drones_built == 0 and larvae.exists and self.can_afford(DRONE):
+                self.drones_built += 1
+                print("1")
+                await self.do(larvae.random.train(DRONE))
 
-        if self.overlords_built is 0 and larvae.exists and self.can_afford(OVERLORD):
-            self.overlords_built += 1
-            await self.do(larvae.random.train(OVERLORD))
+            if self.overlords_built == 0 and larvae.exists and self.can_afford(OVERLORD):
+                self.overlords_built += 1
+                print("2")
+                await self.do(larvae.random.train(OVERLORD))
 
-        if self.drones_built is 1 and larvae.exists and self.can_afford(DRONE):
-            self.drones_built += 1
-            await self.do(larvae.random.train(DRONE))
+            if self.drones_built == 1 and self.overlords_built == 1 and self.already_pending(OVERLORD) and larvae.exists:
+                if self.can_afford(DRONE):
+                    self.drones_built += 1
+                    print("BUILD 3")
+                    await self.do(larvae.random.train(DRONE))
 
-        if self.drones_built is 2 and larvae.exists and self.can_afford(DRONE):
-            self.drones_built += 1
-            await self.do(larvae.random.train(DRONE))
+            if self.units(OVERLORD).amount == 2 and self.overlords_built is 1 and self.drones_built > 2:
 
-        if self.drones_built is 3 and larvae.exists and self.can_afford(DRONE):
-            self.drones_built += 1
-            await self.do(larvae.random.train(DRONE))
+                if self.drones_built == 2 and larvae.exists and self.can_afford(DRONE):
+                    self.drones_built += 1
+                    print("4")
+                    await self.do(larvae.random.train(DRONE))
 
-        if self.drones_built is 4 and larvae.exists and self.can_afford(DRONE):
-            self.drones_built += 1
-            await self.do(larvae.random.train(DRONE))
+                if self.drones_built == 3 and larvae.exists and self.can_afford(DRONE):
+                    self.drones_built += 1
+                    print("5")
+                    await self.do(larvae.random.train(DRONE))
 
-        if self.hatcheries_built is 0 and self.can_afford(HATCHERY):
-            self.hatcheries_built += 1
-            location = await self.get_next_expansion()
-            await self.build(HATCHERY, near=location)
+                if self.drones_built == 4 and larvae.exists and self.can_afford(DRONE):
+                    self.drones_built += 1
+                    print("6")
+                    await self.do(larvae.random.train(DRONE))
 
-        if self.drones_built is 5 and larvae.exists and self.can_afford(DRONE):
-            await self.do(larvae.closest_to(self.units(HATCHERY).ready.first).train(DRONE))
+                print("hatcheries built: %s" % (str(self.hatcheries_built)))
+
+                if self.hatcheries_built == 0 and self.can_afford(HATCHERY) and not self.already_pending(HATCHERY):
+                    print("entered, hatcheries build: %s" % (str(self.hatcheries_built)))
+                    self.hatcheries_built += 1
+                    location = await self.get_next_expansion()
+                    print("7")
+                    await self.build(HATCHERY, near=location)
+
+                if self.drones_built == 5 and self.hatcheries_built is 1 and larvae.exists and self.can_afford(DRONE):
+
+                    print("8")
+                    await self.do(larvae.closest_to(self.units(HATCHERY).ready.first).train(DRONE))
 
         # checks if base build order requirements are done, allows for expansion of hatcheries at-will
-        if self.drones_built is 6 and self.hatcheries_built is 1:
+        if self.drones_built == 6 and self.hatcheries_built is 1:
             self.base_build_order_complete = True
+            print("DONE WITH BASE BUILD ORDER")
 
 
 def main():
@@ -183,7 +198,7 @@ def main():
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, SafeRoachAgent(True)),
         Computer(Race.Protoss, Difficulty.VeryHard)
-    ], realtime=False)
+    ], realtime=True)
 
 if __name__ == '__main__':
     main()
