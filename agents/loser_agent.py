@@ -84,7 +84,7 @@ class LoserAgent(sc2.BotAI):
         return self.workers.idle.amount
 
     @property
-    def get_larva_num(self):
+    def get_larva(self):
         """Get the current amount of larva"""
         return self.units(LARVA).amount
 
