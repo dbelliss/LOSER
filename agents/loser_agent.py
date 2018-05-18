@@ -59,8 +59,9 @@ class LoserAgent(sc2.BotAI):
     async def on_step(self, iteration):
         self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
 
+    @property
     def game_time(self):
-        return self.state.game_loop * 0.725 * 0.0625
+        return self.state.game_loop * 0.725 * (1 / 16)
 
     @property
     def get_minerals(self):
