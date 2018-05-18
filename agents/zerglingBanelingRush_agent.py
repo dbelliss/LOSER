@@ -16,8 +16,8 @@ class SpawnPoolRavagerAgent(LoserAgent):
 
     async def on_step(self, iteration):
         self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
-        #self.log(str(self.researched))
-        self.log(str(self.get_minerals)) # no attribute "mineral_content" but "get_minerals()" is recognized
+        self.log(str(self.game_time()))
+
 def main():
     # Start game with LoserAgent as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
