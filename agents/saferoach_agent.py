@@ -12,7 +12,7 @@ from loser_agent import *
 
 import time
 
-class SafeRoachAgent(sc2.BotAI):
+class SafeRoachAgent(LoserAgent):
     base_top_left = None
     overlord_built = False
     larva_selected = False
@@ -64,6 +64,13 @@ class SafeRoachAgent(sc2.BotAI):
         self.num_brood_lords = None # number of brood lords
         self.num_vipers = None  # number of vipers
 
+        # Number of BUILT units, different from number of unit types
+        self.creeptumors_built = 0 # number of built creep tumors
+        self.drones_built = 0 # number of built drones
+        self.overlords_built = 0 # number of overlords built
+        self.hatcheries_built = 0 # number of hatcheries built
+
+        self.base_build_order_complete = False
 
         # non-standard upgrades purchased
         self.can_burrow = None # true if Burrow has been purchased
@@ -87,50 +94,88 @@ class SafeRoachAgent(sc2.BotAI):
         if iteration == 0:
             await self.chat_send("help me im trapped inside a terrible bot")
 
-        #code from zerg_rush example, literally just last resort sends all units to attack if hatchery is destroyed
-        # if not self.units(HATCHERY).ready.exists:
-        #     for unit in self.workers | self.units(ZERGLING) | self.units(QUEEN):
-        #         await self.do(unit.attack(self.enemy_start_locations[0]))
-        #     return
+        # code from zerg_rush example, literally just last resort sends all units to attack if hatchery is destroyed
+        if not self.units(HATCHERY).ready.exists:
+            for unit in self.workers | self.units(ZERGLING) | self.units(QUEEN):
+                await self.do(unit.attack(self.enemy_start_locations[0]))
+            return
+        else:
+            hatchery = self.units(HATCHERY).ready.random
 
-        #ideas: spread creep to block expansions, spread to increase zergling defense, patrol with zerglings, spread
-        #with overseer, changelings for vision (most bots/humans don't attack? follow the unit it finds)
+        # ideas: spread creep to block expansions, spread to increase zergling defense, patrol with zerglings, spread
+        # with overseer, changelings for vision (most bots/humans don't attack? follow the unit it finds)
 
-        #funny cheese strats with queen?
+        larvae = self.units(LARVA)
 
-    @property
-    def get_minerals(self):
-        """Get the current amount of minerals"""
-        return self.mineral_contents
+        target = self.known_enemy_structures.random_or(self.enemy_start_locations[0]).position
 
-    @property
-    def get_vespene(self):
-        """Get the current amount of vespene"""
-        return self.vespene_contents
 
-    @property
-    def get_remaining_supply(self):
-        """Get remaining supply"""
-        return self.supply_left
+        for idle_worker in self.workers.idle:
+            mf = self.state.mineral_field.closest_to(idle_worker)
+            await self.do(idle_worker.gather(mf))
 
-    @property
-    def get_workers(self):
-        """Get the current amount of drones"""
-        return self.workers.amount
+        if self.supply_left < 2 and self.base_build_order_complete is True:
+            if self.can_afford(OVERLORD) and larvae.exists:
+                await self.do(larvae.random.train(OVERLORD))
 
-    @property
-    def get_idle_workers(self):
-        return self.workers.idle.amount
+        if self.base_build_order_complete is True and self.can_afford(HATCHERY):
+            self.hatcheries_built += 1
+            location = await self.get_next_expansion()
+            await self.build(HATCHERY, near=location)
 
-    @property
-    def get_larva_num(self):
-        """Get the current amount of larva"""
-        return self.units(LARVA).amount
 
-    def log(self, data):
-        """Log the data to the logfile if this agent is set to log information and logfile is below 1 megabyte"""
-        if self.is_logging and os.path.getsize(self.log_file_name) < 1000000:
-            self.log_file.write(data + "\n")
+        for queen in self.units(QUEEN).idle:
+            abilities = await self.get_available_abilities(queen)
+            if AbilityId.BUILD_CREEPTUMOR_QUEEN in abilities and self.creeptumors_built is 0:
+                self.creeptumors_built += 1
+                await self.do(queen(BUILD_CREEPTUMOR_QUEEN, near=hatchery))
+            if AbilityId.EFFECT_INJECTLARVA in abilities:
+                await self.do(queen(EFFECT_INJECTLARVA, hatchery))
+
+        # queen sets down one tumor, then tumor self-spreads
+
+        for tumor in self.units(CREEPTUMOR).idle:
+            abilities = await self.get_available_abilities(tumor)
+            if AbilityId.BUILD_CREEPTUMOR_TUMOR in abilities:
+                self.creeptumors_built += 1
+                await self.do(tumor(BUILD_CREEPTUMOR_TUMOR, near=tumor))
+
+        # strict build order begins here
+        if self.drones_built is 0 and larvae.exists and self.can_afford(DRONE):
+            self.drones_built += 1
+            await self.do(larvae.random.train(DRONE))
+
+        if self.overlords_built is 0 and larvae.exists and self.can_afford(OVERLORD):
+            self.overlords_built += 1
+            await self.do(larvae.random.train(OVERLORD))
+
+        if self.drones_built is 1 and larvae.exists and self.can_afford(DRONE):
+            self.drones_built += 1
+            await self.do(larvae.random.train(DRONE))
+
+        if self.drones_built is 2 and larvae.exists and self.can_afford(DRONE):
+            self.drones_built += 1
+            await self.do(larvae.random.train(DRONE))
+
+        if self.drones_built is 3 and larvae.exists and self.can_afford(DRONE):
+            self.drones_built += 1
+            await self.do(larvae.random.train(DRONE))
+
+        if self.drones_built is 4 and larvae.exists and self.can_afford(DRONE):
+            self.drones_built += 1
+            await self.do(larvae.random.train(DRONE))
+
+        if self.hatcheries_built is 0 and self.can_afford(HATCHERY):
+            self.hatcheries_built += 1
+            location = await self.get_next_expansion()
+            await self.build(HATCHERY, near=location)
+
+        if self.drones_built is 5 and larvae.exists and self.can_afford(DRONE):
+            await self.do(larvae.closest_to(self.units(HATCHERY).ready.first).train(DRONE))
+
+        # checks if base build order requirements are done, allows for expansion of hatcheries at-will
+        if self.drones_built is 6 and self.hatcheries_built is 1:
+            self.base_build_order_complete = True
 
 
 def main():
