@@ -57,8 +57,14 @@ class AgentSelector(LoserAgent):
         # List of build orders
         self.agents = [SafeRoachAgent(is_logging), SpawnPoolRavagerAgent(is_logging)]
 
+        # Choose RandomBuild
+        self.chooseRandomBuild()
+
         # List of strategies
-        self.strategies = []
+        self.strategies = ["Aggressive", "Defensive"]
+
+        # Choose RandomStrategy
+        self.chooseRandomStrategy()
 
         # Properties
         self.stepsPerAgent = 100
@@ -67,16 +73,20 @@ class AgentSelector(LoserAgent):
         self.curStep = 0
         self.timesSwitched = 0
 
-        # Choose RandomAgent
-        self.curAgentIndex = randint(0,1)
-        print(bcolors.OKGREEN + "###RandomIndex: {}".format(self.curAgentIndex) + bcolors.ENDC)
-
         # TODO
         # Call constructor for current agent
         # self.agents[self.curAgentIndex].__init__()
 
     def fitness(self):
         self.idle_workers = self.get_idle_workers
+
+    def chooseRandomBuild(self):
+        self.curAgentIndex = randint(0,1)
+        print(bcolors.OKGREEN + "###RandomBuildIndex: {}".format(self.agents[self.curAgentIndex]) + bcolors.ENDC)
+
+    def chooseRandomStrategy(self):
+        self.strategiesIndex = randint(0,1)
+        print(bcolors.OKGREEN + "###RandomStrategyIndex: {}".format(self.strategies[self.strategiesIndex]) + bcolors.ENDC)
 
     async def on_step(self, iteration):
         self.log("Step: %s Idle Workers: %s Overlord: %s Workers: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount), str(self.workers.amount)))
