@@ -1,10 +1,11 @@
 #!/usr/bin/python3
-import random
+from random import randint
 
 # Debug imports
 from pprint import pprint
-import time
+from time import gmtime, strftime, localtime
 import sys
+import os
 # python-sc2 imports
 import sc2
 from sc2 import Race, Difficulty
@@ -16,10 +17,30 @@ from loser_agent import LoserAgent
 from saferoach_agent import SafeRoachAgent
 from zerglingBanelingRush_agent import SpawnPoolRavagerAgent
 
+# Coloring for terminal output
+# https://stackoverflow.com/questions/287871/print-in-terminal-with-colors
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 class Fitness(LoserAgent):
-    def __init__(self, is_logging = True):
+    def __init__(self):
         super().__init__()
-        self.idle_workers = self.workers.idle.amount
+        print(bcolors.OKGREEN + "###Fitness Constructor" + bcolors.ENDC)
+        self.idle_workers = self.get_idle_workers()
+
+    def __repr__(self):
+        return f"idle workers: {self.idle_workers}"
+
+class AgentSelector(LoserAgent):
+    def __init__(self, is_logging = False):
+        super().__init__()
 
         # For debugging
         self.is_logging = is_logging
@@ -28,30 +49,48 @@ class Fitness(LoserAgent):
             # Make logs directory if it doesn't exist
             if not os.path.exists("./logs"):
                 os.mkdir("./logs")
-            self.log_file_name = "./logs/" + strftime("%Y-%m-%d %H:%M:%S", localtime()) + ".log"
+            self.log_file_name = "./logs/" + "AgentSelector_" + strftime("%Y-%m-%d %H:%M:%S", localtime()) + ".log"
             self.log_file = open(self.log_file_name, "w+")  # Create log file based on the time
 
-    def __repr__(self):
-        return f"idle workers: {self.idle_workers}"
+        print(bcolors.OKGREEN + "###AgentSelector Constructor" + bcolors.ENDC)
 
-class AgentSelector(sc2.BotAI):
-    def __init__(self):
-        super().__init__()
-        self.agents = [SafeRoachAgent(LoserAgent()), SpawnPoolRavagerAgent(LoserAgent())]
-        # self.agents = [loser_agent.LoserAgent(True)]
+        # List of build orders
+        self.agents = [SafeRoachAgent(is_logging), SpawnPoolRavagerAgent(is_logging)]
+
+        # List of strategies
+        self.strategies = []
+
+        # Properties
         self.stepsPerAgent = 100
         self.curAgentIndex = 0
+        self.strategiesIndex = 0
         self.curStep = 0
         self.timesSwitched = 0
 
+        # Choose RandomAgent
+        self.curAgentIndex = randint(0,1)
+        print(bcolors.OKGREEN + "###RandomIndex: {}".format(self.curAgentIndex) + bcolors.ENDC)
+
+        # TODO
+        # Call constructor for current agent
+        # self.agents[self.curAgentIndex].__init__()
+
     async def on_step(self, iteration):
-        self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
-        self.log(self.fitness.__repr__())
+        # TODO
+        # Get Fitness on every step
+        # fitness = Fitness()
+        # self.log(fitness.__repr__)
+
+        # TODO
+        # Call the current agent on_step
+        # await self.agents[self.curAgentIndex].on_step(iteration)
+        self.log("agent selector on step")
+        pass
 
 def main():
-    # Start game with LoserAgent as the Bot, and begin logging
+    # Start game with AgentSelector as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
-        Bot(Race.Zerg, LoserAgent(True)),
+        Bot(Race.Zerg, AgentSelector(True)),
         Computer(Race.Protoss, Difficulty.Medium)
     ], realtime=False)
 
