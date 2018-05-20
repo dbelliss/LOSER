@@ -13,7 +13,7 @@ from sc2.constants import *
 from sc2.player import Bot, Computer
 
 # agent imports
-from loser_agent import LoserAgent
+from loser_agent import *
 from saferoach_agent import SafeRoachAgent
 from zerglingBanelingRush_agent import SpawnPoolRavagerAgent
 
@@ -29,14 +29,14 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-class Fitness(LoserAgent):
-    def __init__(self):
-        super().__init__()
-        print(bcolors.OKGREEN + "###Fitness Constructor" + bcolors.ENDC)
-        self.idle_workers = self.get_idle_workers()
+# class Fitness(LoserAgent):
+#     def __init__(self):
+#         super().__init__()
+#         print(bcolors.OKGREEN + "###Fitness Constructor" + bcolors.ENDC)
+#         self.idle_workers = self.get_idle_workers
 
-    def __repr__(self):
-        return f"idle workers: {self.idle_workers}"
+#     def __repr__(self):
+#         return f"idle workers: {self.idle_workers}"
 
 class AgentSelector(LoserAgent):
     def __init__(self, is_logging = False):
@@ -75,17 +75,20 @@ class AgentSelector(LoserAgent):
         # Call constructor for current agent
         # self.agents[self.curAgentIndex].__init__()
 
+    def fitness(self):
+        self.idle_workers = self.get_idle_workers
+
     async def on_step(self, iteration):
-        # TODO
-        # Get Fitness on every step
-        # fitness = Fitness()
-        # self.log(fitness.__repr__)
+        self.log("Step: %s Idle Workers: %s Overlord: %s Workers: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount), str(self.workers.amount)))
+
+        # Run fitness on a certain number of steps
+        if (iteration % self.stepsPerAgent == 0):
+            print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
+            self.fitness()
 
         # TODO
         # Call the current agent on_step
         # await self.agents[self.curAgentIndex].on_step(iteration)
-        self.log("agent selector on step")
-        pass
 
 def main():
     # Start game with AgentSelector as the Bot, and begin logging
