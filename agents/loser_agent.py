@@ -1,4 +1,7 @@
 # https://chatbotslife.com/building-a-basic-pysc2-agent-b109cde1477c
+import asyncio
+import random
+
 import sc2
 from sc2 import Race, Difficulty
 from sc2.constants import *
@@ -56,6 +59,10 @@ class LoserAgent(sc2.BotAI):
         self.infestor_energy = None  # True if Pathogen Glands has been purchased
         self.ultralisk_defense = None  # True if Chitinous Plating has been purchased
 
+        self.strike_force = None  # Units actively being used for things, gets set to null on strategy change
+
+        self.prev_strategy = None  # Previous strategy so you now when the strategy changes
+        self.did_strategy_change = False  # True if strategy just changed in this iteration
         # standard upgrades
         # TODO
 
@@ -63,7 +70,7 @@ class LoserAgent(sc2.BotAI):
     Base on_step function
     Will only do something if it is given a strategy_num
     '''
-    async def on_step(self, iteration, strategy_num = -1):
+    async def on_step(self, iteration, strategy_num = 2):
         self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
         self.log("Step: " + str(iteration))
 
@@ -76,8 +83,17 @@ class LoserAgent(sc2.BotAI):
                 strategy = Strategies(strategy_num)
                 self.log("Strategy is " + str(strategy))
 
+                # Mark strategy as changed or not
+                if strategy != self.prev_strategy:
+                    self.did_strategy_change = True
+                    self.strike_force = None
+                else:
+                    self.did_strategy_change = False
+
+                self.prev_strategy = strategy  # Prepare for next iteration
+
                 # Call the proper strategy function
-                self.perform_strategy(iteration, strategy)
+                await self.perform_strategy(iteration, strategy)
             else:
                 # Not valid strategy num
                 self.log_error("Unknown strategy " + str(strategy_num))
@@ -86,39 +102,39 @@ class LoserAgent(sc2.BotAI):
     Calls the correct strategy function given the strategy enum value
     Strategy functions can be override in base classes
     '''
-    def perform_strategy(self, iteration, strategy):
-
+    async def perform_strategy(self, iteration, strategy):
+        self.clean_strike_force()  # Clear dead units from strike force
         # Attack
         if strategy == Strategies.HEAVY_ATTACK:
-            self.heavy_attack(iteration)
+            await self.heavy_attack(iteration)
         elif strategy == Strategies.MEDIUM_ATTACK:
-            self.medium_attack(iteration)
+            await self.medium_attack(iteration)
         elif strategy == Strategies.LIGHT_ATTACK:
-            self.light_attack(iteration)
+            await self.light_attack(iteration)
 
         # Scouting
         elif strategy == Strategies.HEAVY_SCOUTING:
-            self.heavy_scouting(iteration)
+            await self.heavy_scouting(iteration)
         elif strategy == Strategies.MEDIUM_SCOUTING:
-            self.medium_scouting(iteration)
+            await self.medium_scouting(iteration)
         elif strategy == Strategies.LIGHT_SCOUTING:
-            self.light_scouting(iteration)
+            await self.light_scouting(iteration)
 
         # Defense
         elif strategy == Strategies.HEAVY_DEFENSE:
-            self.heavy_defense(iteration)
+            await self.heavy_defense(iteration)
         elif strategy == Strategies.MEDIUM_DEFENSE:
-            self.medium_defense(iteration)
+            await self.medium_defense(iteration)
         elif strategy == Strategies.LIGHT_DEFENSE:
-            self.light_defense(iteration)
+            await self.light_defense(iteration)
 
         # Harass
         elif strategy == Strategies.HEAVY_HARASS:
-            self.heavy_harass(iteration)
+            await self.heavy_harass(iteration)
         elif strategy == Strategies.MEDIUM_HARASS:
-            self.medium_harass(iteration)
+            await self.medium_harass(iteration)
         elif strategy == Strategies.LIGHT_HARASS:
-            self.light_harass(iteration)
+            await self.light_harass(iteration)
 
         # Unknown
         else:
@@ -128,40 +144,74 @@ class LoserAgent(sc2.BotAI):
     Send all combat units (including the queen) to a known enemy position
     Do NOT recall ever
     '''
-    def heavy_attack(self, iteration):
-        self.log("I AM IN HEAVY ATTACK")
-        pass
+    async def heavy_attack(self, iteration):
+        await self.attack_with_percentage_of_army(1)
 
     '''
     Send all combat units (including the queen) to a known enemy position
-    Recall after a certain amuont of units die 
+    Recall after a certain amount of units die 
+    Must keep track of units being used because order of units in self.units constantly changes
     '''
-    def medium_attack(self, iteration):
-        pass
-
+    async def medium_attack(self, iteration):
+        await self.attack_with_percentage_of_army(.6)
     '''
     Attack a known enemy position, but if you get attacked, retreat back to base
     '''
-    def light_attack(self, iteration):
-        pass
+
+    async def light_attack(self, iteration):
+        await self.attack_with_percentage_of_army(.3)
+
+
+    async def attack_with_percentage_of_army(self, percentage):
+        army = self.army
+
+        if len(army) == 0:
+            # No army to use, don't bother trying to attack
+            return
+
+        desired_strike_force_size = int(percentage * army.amount)
+        self.log(f"{desired_strike_force_size} is desired size")
+        # Strategy just changed, need to take a strike_force
+        if self.strike_force is None:
+            self.strike_force = army.take(desired_strike_force_size)
+
+        # If strike force should include more members (If a unit was built)
+        # Do not add more units if the entire army is already in strike force
+        if len(self.strike_force) < desired_strike_force_size and len(army) > len(self.strike_force):
+            self.strike_force += (army - self.strike_force).take(desired_strike_force_size - len(self.strike_force))
+
+        self.log(f"Size of striek force is {len(self.strike_force)}")
+
+        # By now we must have at least 1 offensive unit
+        target = self.select_target()
+        unselected_army = army - self.strike_force
+
+        # All strike force members attack
+        for unit in self.strike_force:
+            self.log(unit.tag)
+            await self.do(unit.attack(target))
+
+        # # Remaining offensive units just wait at their position
+        # for unit in unselected_army:
+        #     await self.do(unit.hold_position())
 
     '''
     Send all military units out to different areas
     Die for knowledge
     '''
-    def heavy_scouting(self, iteration):
+    async def heavy_scouting(self, iteration):
         pass
 
     '''
     Send a good amount of military units out
     '''
-    def medium_scouting(self, iteration):
+    async def medium_scouting(self, iteration):
         pass
 
     '''
     Send a couple of things out for scouting and pull back if damage is taken
     '''
-    def light_scouting(self, iteration):
+    async def light_scouting(self, iteration):
         pass
 
     '''
@@ -169,21 +219,21 @@ class LoserAgent(sc2.BotAI):
     Build lots of static defenses
     Build lots of lurkers 
     '''
-    def heavy_defense(self, iteration):
+    async def heavy_defense(self, iteration):
         pass
 
     '''
     Recall and distribute between main base and explansions
     Build some defensive structures and units
     '''
-    def medium_defense(self, iteration):
+    async def medium_defense(self, iteration):
         pass
 
     '''
     Distribute forces between main base and expansions
     Build a few defensive structures and units
     '''
-    def light_defense(self, iteration):
+    async def light_defense(self, iteration):
         pass
 
     '''
@@ -191,21 +241,64 @@ class LoserAgent(sc2.BotAI):
     Build mutalisks and harass with them
     If harass units are attacked, move to the next base
     '''
-    def heavy_harass(self, iteration):
+    async def heavy_harass(self, iteration):
         pass
 
     '''
     TODO
     '''
-    def medium_harass(self, iteration):
+    async def medium_harass(self, iteration):
         pass
 
     '''
     If attacked pull back for a set time
     Only use harass units if you have them
     '''
-    def light_harass(self, iteration):
+    async def light_harass(self, iteration):
         pass
+
+    '''
+    Removes dead untis from strike force
+    '''
+    def clean_strike_force(self):
+        if self.strike_force is None:
+            # No defined strike force yet
+            return
+        for unit in self.strike_force:
+            if self.units.find_by_tag(unit.tag) is None:
+                self.strike_force.remove(unit)
+    '''
+    Utilities
+    '''
+    @property
+    def army(self):
+        return self.units - self.units(DRONE) - self.units(OVERLORD) - self.units(LARVA) - self.units(EGG)- self.buildings
+
+    @property
+    def buildings(self):
+        return self.units(HATCHERY) + self.units(LAIR) + self.units(HIVE) + self.units(EXTRACTOR) + self.units(SPAWNINGPOOL) \
+               + self.units(ROACHWARREN) + self.units(CREEPTUMOR) + self.units(EVOLUTIONCHAMBER) + self.units(HYDRALISKDEN) \
+               + self.units(SPIRE) + self.units(GREATERSPIRE) + self.units(ULTRALISKCAVERN) + self.units(INFESTATIONPIT) \
+               + self.units(NYDUSNETWORK) + self.units(BANELINGNEST) + self.units(SPINECRAWLER) + self.units(SPORECRAWLER)
+
+    '''
+    From Dentosal's proxyrax build
+    Targets a random known enemy unit
+    If no known units, targets a random known building
+    If no known buildings and units, go towards te first possible enemy start position
+    '''
+    def select_target(self):
+        target = self.known_enemy_structures
+        if target.exists:
+            return target.random.position
+
+        target = self.known_enemy_units
+        if target.exists:
+            return target.random.position
+
+
+        # TODO: Explore other starting positions
+        return self.enemy_start_locations[0].position
 
     @property
     def get_minerals(self):
@@ -243,13 +336,13 @@ class LoserAgent(sc2.BotAI):
     def log(self, data):
         """Log the data to the logfile if this agent is set to log information and logfile is below 1 megabyte"""
         if self.is_logging and os.path.getsize(self.log_file_name) < 1000000:
-            self.log_file.write(data + "\n")
+            self.log_file.write(f"{data}\n")
         if self.is_printing_to_console:
             print(data)
 
     def log_error(self, data):
-        data = "ERROR: " + data
-        self.log_file.write(data + "\n")
+        data = f"ERROR: {data}"
+        self.log_file.write(f"{data}\n")
         print(data)
 
 
