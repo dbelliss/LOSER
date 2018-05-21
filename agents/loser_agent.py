@@ -15,6 +15,7 @@ import os
 import sys
 
 # Get strategy enums
+from sc2.position import Point3, Point2
 from strategies import Strategies
 
 class LoserAgent(sc2.BotAI):
@@ -46,34 +47,99 @@ class LoserAgent(sc2.BotAI):
         self.is_researching = 1  # If an upgrade is being researched
         self.not_researched = 0  # If an upgrade is not being researched and has not been researched
 
-        # non-standard upgrades purchased
-        self.can_burrow = None # true if Burrow has been purchased
-        self.zergling_speed = None # True if Metabolic Boost has been purchased
-        self.zergling_attack_boost = None  # True if Adrenal glands has been purchased
-        self.baneling_speed = None # True if Centrifugal Hooks has been purchased
-        self.roach_speed = None  # True if Glial Reconstruction has been purchased
-        self.roach_tunnel = None  # True if Tunneling Claws reconstruction has been purchased
-        self.overlord_speed = None  # True if Pneumatized Carapace has been purchsed
-        self.hydralisk_range = None  # True if Grooved Spines has been purchased
-        self.infestor_parasite = None  # True if Neural parasite has been purchased
-        self.infestor_energy = None  # True if Pathogen Glands has been purchased
-        self.ultralisk_defense = None  # True if Chitinous Plating has been purchased
+        # non-standard upgrade status
+        self.can_burrow = 0
+        self.zergling_speed = 0
+        self.zergling_attack_boost = 0
+        self.baneling_speed = 0
+        self.roach_speed = 0
+        self.roach_tunnel = 0
+        self.overlord_speed = 0
+        self.hydralisk_range = 0
+        self.infestor_parasite = 0
+        self.infestor_energy = 0
+        self.ultralisk_defense = 0
 
-        self.strike_force = None  # Units actively being used for things, gets set to null on strategy change
-
-        self.prev_strategy = None  # Previous strategy so you now when the strategy changes
-        self.did_strategy_change = False  # True if strategy just changed in this iteration
         # standard upgrades
-        # TODO
+        # Ground melee
+        self.melee1 = 0
+        self.melee2 = 0
+        self.melee3 = 0
+
+        # Ground ranged
+        self.ranged1 = 0
+        self.ranged2 = 0
+        self.ranged3 = 0
+
+        # Ground defense
+        self.carapace1 = 0
+        self.carapace2 = 0
+        self.carapace3 = 0
+
+        # Flyer attack
+        self.flyer_attack1 = 0
+        self.flyer_attack2 = 0
+        self.flyer_attack3 = 0
+
+        # Flyer defense
+        self.flyer_defense1 = 0
+        self.flyer_defense2 = 0
+        self.flyer_defense3 = 0
+
+        # units built
+        self.num_zerglings_built = 0
+        self.num_drones_built = 0
+        self.num_queens_built = 0
+        self.num_roaches_built = 0
+        self.num_hydralisks_built = 0
+        self.num_banelines_built = 0
+        self.num_lurkers_built = 0
+        self.num_ravagers_built = 0
+        self.num_num_mutalisks_built = 0
+        self.num_corrupters_built = 0
+        self.num_brood_lords_built = 0
+        self.num_swarm_hosts_built = 0
+        self.num_vipers_built = 0
+        self.num_ultralisks_built = 0
+
+        # Static defenses built
+        self.num_spinecrawlers_built = 0
+        self.num_sporecrawlers_built = 0
+
+        # Structure built
+        self.num_extractors_built = 0
+        self.num_hatcheries_built = 0
+        self.num_spawningpools_built = 0
+        self.num_roachwarrens_built = 0
+        self.num_hyraliskdens_built = 0
+        self.num_lairs_built = 0
+        self.num_infestation_pits_built = 0
+        self.num_ravagerdens_built = 0
+        self.num_lurkerdens_built = 0
+        self.num_hives_built = 0
+        self.num_ultralisk_caverns_built = 0
+        self.num_spires_built = 0
+        self.num_greater_spires_built = 0
+
+        # Units actively being used for things, gets set to null on strategy change
+        self.strike_force = None
+
+        # Previous strategy so you now when the strategy changes
+        self.prev_strategy = None
+
+        # True if strategy just changed in this iteration
+        self.did_strategy_change = False
+
 
     '''
     Base on_step function
     Will only do something if it is given a strategy_num
     '''
-    async def on_step(self, iteration, strategy_num = 2):
-        self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
-        self.log("Step: " + str(iteration))
+    async def on_step(self, iteration, strategy_num=0):
+        # self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
+        # self.log("Step: " + str(iteration))
 
+        strategy_num = (int)(iteration / 100) % 8
         if strategy_num == -1:
             self.log("No given strategy")
         else:
@@ -81,10 +147,10 @@ class LoserAgent(sc2.BotAI):
             if Strategies.has_value(strategy_num):
                 # Valid strategy num, convert int into enum value
                 strategy = Strategies(strategy_num)
-                self.log("Strategy is " + str(strategy))
 
                 # Mark strategy as changed or not
                 if strategy != self.prev_strategy:
+                    self.log("New strategy is " + str(strategy))
                     self.did_strategy_change = True
                     self.strike_force = None
                 else:
@@ -94,9 +160,59 @@ class LoserAgent(sc2.BotAI):
 
                 # Call the proper strategy function
                 await self.perform_strategy(iteration, strategy)
+
+                await self.basic_build(iteration)
             else:
                 # Not valid strategy num
                 self.log_error("Unknown strategy " + str(strategy_num))
+
+    '''
+    Builds a ton of lings
+    '''
+    async def basic_build(self, iteration):
+        hatchery = self.units(HATCHERY).ready.random
+        # Build overlords if close to reaching cap
+        if self.supply_used > self.supply_cap - 4 and self.units(LARVA).amount > 0 and self.can_afford(OVERLORD):
+            await self.do(self.units(LARVA).random.train(OVERLORD))
+        else:
+            # Build drones
+            if self.units(DRONE).amount < 20 and self.can_afford(DRONE) and self.units(LARVA).amount > 0 and self.supply_used < self.supply_cap:
+                await self.do(self.units(LARVA).random.train(DRONE))
+
+            # Build lings
+            if self.units(ZERGLING).amount < 100 and self.can_afford(ZERGLING) and self.units(LARVA).amount > 0 and \
+                    self.supply_used < self.supply_cap - 1 and self.units(SPAWNINGPOOL).ready.exists:
+                await self.do(self.units(LARVA).random.train(ZERGLING))
+        # Build Spawning pool
+        if not self.units(SPAWNINGPOOL).exists and self.can_afford(SPAWNINGPOOL):
+            await self.build(SPAWNINGPOOL, near=hatchery)
+
+        if self.num_extractors_built < 1 and self.can_afford(EXTRACTOR):
+            self.num_extractors_built += 1
+            drone = self.workers.random
+            target = self.state.vespene_geyser.closest_to(drone.position)
+            await self.do(drone.build(EXTRACTOR, target))
+
+        for extractor in self.units(EXTRACTOR):
+            if extractor.assigned_harvesters < extractor.ideal_harvesters:
+                await self.do(self.workers.random.gather(extractor))
+        # Build Spawning pool
+        if not self.units(EVOLUTIONCHAMBER).exists and self.can_afford(SPAWNINGPOOL):
+            await self.build(EVOLUTIONCHAMBER, near=hatchery)
+        elif self.can_afford(RESEARCH_ZERGMELEEWEAPONSLEVEL1) and self.melee1 == 0 and self.units(EVOLUTIONCHAMBER).ready.exists:
+            self.melee1 = 1
+            await self.do(self.units(EVOLUTIONCHAMBER).first(RESEARCH_ZERGMELEEWEAPONSLEVEL1))
+
+        if self.units(QUEEN).amount < 1 and self.units(SPAWNINGPOOL).ready.exists and self.can_afford(QUEEN) and self.supply_used < self.supply_cap - 1\
+                and not self.num_queens_built == 0:
+            self.num_queens_built += 1
+            await self.do(self.units(HATCHERY).first(TRAINQUEEN_QUEEN))
+
+        elif self.units(QUEEN).amount > 0:
+            queen = self.units(QUEEN).first
+            abilities = await self.get_available_abilities(queen)
+            if AbilityId.EFFECT_INJECTLARVA in abilities:
+                await self.do(queen(EFFECT_INJECTLARVA, hatchery))
 
     '''
     Calls the correct strategy function given the strategy enum value
@@ -170,8 +286,59 @@ class LoserAgent(sc2.BotAI):
             return
 
         desired_strike_force_size = int(percentage * army.amount)
-        self.log(f"{desired_strike_force_size} is desired size")
         # Strategy just changed, need to take a strike_force
+        if self.strike_force is None:
+            self.strike_force = army.take(desired_strike_force_size)
+
+        # If strike force should include more members (If a unit was built)
+        # Do not add more units if the entire army is already in strike force
+        if len(self.strike_force) < desired_strike_force_size and len(army) > len(self.strike_force):
+
+            self.strike_force += (army - self.strike_force).take(desired_strike_force_size - len(self.strike_force))
+
+
+        # By now we must have at least 1 offensive unit
+        target = self.select_target()
+        unselected_army = army - self.strike_force
+
+        # All strike force members attack
+        for unit in self.strike_force:
+            await self.do(unit.attack(target))
+
+        # # Remaining offensive units just wait at their position
+        # for unit in unselected_army:
+        #     await self.do(unit.hold_position())
+
+
+    '''
+    Send all military units out to different areas
+    Die for knowledge
+    '''
+    async def heavy_scouting(self, iteration):
+        await self.scout_with_percentage_of_army(1, True, False)
+
+    '''
+    Send a good amount of military units out
+    '''
+    async def medium_scouting(self, iteration):
+        await self.scout_with_percentage_of_army(.5, True, False)
+
+    '''
+    Send a couple of things out for scouting and pull back if damage is taken
+    '''
+    async def light_scouting(self, iteration):
+        await self.scout_with_percentage_of_army(.5, True, True)
+
+    async def scout_with_percentage_of_army(self, percentage, use_overlords, pull_back_if_damaged):
+        map_width = self.game_info.map_size[0]
+        map_height = self.game_info.map_size[1]
+
+        army = self.army
+
+        if use_overlords:
+            army += self.units(OVERLORD)
+
+        desired_strike_force_size = int(percentage * army.amount)
         if self.strike_force is None:
             self.strike_force = army.take(desired_strike_force_size)
 
@@ -180,39 +347,26 @@ class LoserAgent(sc2.BotAI):
         if len(self.strike_force) < desired_strike_force_size and len(army) > len(self.strike_force):
             self.strike_force += (army - self.strike_force).take(desired_strike_force_size - len(self.strike_force))
 
-        self.log(f"Size of striek force is {len(self.strike_force)}")
+        for unit_ref in self.strike_force:
+            # Need to reacquire unit from self.units to see that a command has been queued
+            id = unit_ref.tag
+            unit = self.units.find_by_tag(id)
 
-        # By now we must have at least 1 offensive unit
-        target = self.select_target()
-        unselected_army = army - self.strike_force
-
-        # All strike force members attack
-        for unit in self.strike_force:
-            self.log(unit.tag)
-            await self.do(unit.attack(target))
-
-        # # Remaining offensive units just wait at their position
-        # for unit in unselected_army:
-        #     await self.do(unit.hold_position())
-
-    '''
-    Send all military units out to different areas
-    Die for knowledge
-    '''
-    async def heavy_scouting(self, iteration):
-        pass
-
-    '''
-    Send a good amount of military units out
-    '''
-    async def medium_scouting(self, iteration):
-        pass
-
-    '''
-    Send a couple of things out for scouting and pull back if damage is taken
-    '''
-    async def light_scouting(self, iteration):
-        pass
+            if unit is None:
+                # Unit died
+                self.strike_force.remove(unit_ref)
+                continue
+            if pull_back_if_damaged and unit.health < unit.health_max:
+                # If pull_back is true and unti is damaged, move to random hatchery
+                if (len(self.bases) > 0):
+                    await self.do(unit.move(self.bases[random.randrange(0, len(self.bases))].position))
+            elif unit.noqueue:
+                # Go to a new random position
+                pos = lambda: None  # https://stackoverflow.com/questions/19476816/creating-an-empty-object-in-python
+                pos.x = random.randrange(0, map_width)
+                pos.y = random.randrange(0, map_height)
+                position_to_search = Point2.from_proto(pos)
+                await self.do(unit.move(position_to_search))
 
     '''
     Complete recall back to main base
@@ -220,21 +374,55 @@ class LoserAgent(sc2.BotAI):
     Build lots of lurkers 
     '''
     async def heavy_defense(self, iteration):
-        pass
+        # Build 5 spinecrawlers and sporecrawlers, and 10 lurkers
+        await self.prepare_defenses(4, 4, 10)
 
     '''
     Recall and distribute between main base and explansions
     Build some defensive structures and units
     '''
     async def medium_defense(self, iteration):
-        pass
+        # Build 3 spinecrawlers and sporecrawlers, and 5 lurkers
+        await self.prepare_defenses(3, 3, 5)
 
     '''
     Distribute forces between main base and expansions
     Build a few defensive structures and units
     '''
     async def light_defense(self, iteration):
-        pass
+        # Build 1 spinecrawlers and sporecrawlers, and 3 lurkers
+        await self.prepare_defenses(1, 1, 3)
+
+
+    async def prepare_defenses(self, num_spine_crawlers_to_build, num_sporecrawlers_to_build, num_lurkers_to_build):
+        hatchery = self.units(HATCHERY).ready.random
+
+        # TODO: have some units go to expansions
+        # Return all units to base
+        for unit in self.army + self.overlords:
+            if unit.distance_to(hatchery.position) > 20:
+                await self.do(unit.move(hatchery.position))
+
+        # Build spine crawlers
+        if self.units(SPAWNINGPOOL).ready.exists and self.num_spinecrawlers_built < num_spine_crawlers_to_build \
+                and self.can_afford(SPINECRAWLER):
+            await self.build(SPINECRAWLER, near=hatchery)
+
+        # Build spore crawlers
+        if self.units(EVOLUTIONCHAMBER).ready.exists and self.num_sporecrawlers_built < num_sporecrawlers_to_build \
+                and self.can_afford(SPORECRAWLER):
+            await self.build(SPORECRAWLER, near=hatchery)
+
+
+        # Build lurkers NOTE: Unable to test because I can't build a lair in sc2 viewer
+        if self.units(LURKERDEN).ready.exists and self.num_lurkers_built < num_lurkers_to_build \
+                and self.can_afford(LURKER):
+            await self.do(larvae.random.train(LURKER))
+
+        # Burrow all lurkers so they can attack
+        for lurker in self.units(LURKER):
+            await self.do(lurker(BURROWDOWN_LURKER))
+
 
     '''
     Build swarms hosts and harass with them
@@ -258,7 +446,7 @@ class LoserAgent(sc2.BotAI):
         pass
 
     '''
-    Removes dead untis from strike force
+    Removes dead units from strike force
     '''
     def clean_strike_force(self):
         if self.strike_force is None:
@@ -267,12 +455,18 @@ class LoserAgent(sc2.BotAI):
         for unit in self.strike_force:
             if self.units.find_by_tag(unit.tag) is None:
                 self.strike_force.remove(unit)
+
     '''
     Utilities
     '''
+
     @property
     def army(self):
         return self.units - self.units(DRONE) - self.units(OVERLORD) - self.units(LARVA) - self.units(EGG)- self.buildings
+
+    @property
+    def overlords(self):
+        return self.units(OVERLORD)
 
     @property
     def buildings(self):
@@ -280,6 +474,13 @@ class LoserAgent(sc2.BotAI):
                + self.units(ROACHWARREN) + self.units(CREEPTUMOR) + self.units(EVOLUTIONCHAMBER) + self.units(HYDRALISKDEN) \
                + self.units(SPIRE) + self.units(GREATERSPIRE) + self.units(ULTRALISKCAVERN) + self.units(INFESTATIONPIT) \
                + self.units(NYDUSNETWORK) + self.units(BANELINGNEST) + self.units(SPINECRAWLER) + self.units(SPORECRAWLER)
+
+    @property
+    def bases(self):
+        return self.units(HATCHERY) | self.units(LAIR) | self.units(HIVE)
+
+    def get_random_worker(self):
+        return self.units(DRONE).random
 
     '''
     From Dentosal's proxyrax build
