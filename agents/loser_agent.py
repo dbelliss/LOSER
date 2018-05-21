@@ -139,36 +139,18 @@ class LoserAgent(sc2.BotAI):
         # Build lings, queen, overlords, drones, and meleeattack1
         await self.basic_build(iteration)
 
-        # Perform actions based on givne strategy
+        # Perform actions based on given strategy
         if strategy_num == -1:
             self.log("No given strategy")
         else:
-            # Make sure given strategy num is valid
-            if Strategies.has_value(strategy_num):
-                # Valid strategy num, convert int into enum value
-                strategy = Strategies(strategy_num)
-
-                # Mark strategy as changed or not
-                if strategy != self.prev_strategy:
-                    self.log("New strategy is " + str(strategy))
-                    self.did_strategy_change = True
-                    self.strike_force = None
-                else:
-                    self.did_strategy_change = False
-
-                self.prev_strategy = strategy  # Prepare for next iteration
-
-                # Call the proper strategy function
-                await self.perform_strategy(iteration, strategy)
-            else:
-                # Not valid strategy num
-                self.log_error("Unknown strategy " + str(strategy_num))
+            await self.perform_strategy(iteration, strategy_num)
 
     '''
     Builds a ton of lings
     Build drones and start gathering vespene
     Build a queen
     Build overlords as needed
+    Builds a few hydralisks
     '''
     async def basic_build(self, iteration):
         hatchery = self.bases.ready.random
@@ -228,8 +210,8 @@ class LoserAgent(sc2.BotAI):
                 await self.do(queen(EFFECT_INJECTLARVA, hatchery))
 
         # Upgrade to lair when possible
-        if self.num_lairs_built == 0 and self.units(HATCHERY).amount > 0 and self.can_afford(UPGRADETOLAIR_LAIR) \
-                and self.units(SPAWNINGPOOL).ready.exists and self.units(QUEEN).amount > 0:
+        if self.num_lairs_built == 0 and self.units(HATCHERY).amount > 0 and self.can_afford(AbilityId.UPGRADETOLAIR_LAIR) \
+                and self.can_afford(UnitTypeId.LAIR) and self.units(SPAWNINGPOOL).ready.exists and self.units(QUEEN).amount > 0:
             hatchery = self.units(HATCHERY).first
             self.num_lairs_built += 1
             err = await self.do(hatchery(UPGRADETOLAIR_LAIR))
@@ -256,8 +238,28 @@ class LoserAgent(sc2.BotAI):
     Calls the correct strategy function given the strategy enum value
     Strategy functions can be override in base classes
     '''
-    async def perform_strategy(self, iteration, strategy):
+    async def perform_strategy(self, iteration, strategy_num):
         self.clean_strike_force()  # Clear dead units from strike force
+
+        # Make sure given strategy num is valid
+        if Strategies.has_value(strategy_num):
+            # Valid strategy num, convert int into enum value
+            strategy = Strategies(strategy_num)
+
+            # Mark strategy as changed or not
+            if strategy != self.prev_strategy:
+                self.log("New strategy is " + str(strategy))
+                self.did_strategy_change = True
+                self.strike_force = None
+            else:
+                self.did_strategy_change = False
+
+            self.prev_strategy = strategy  # Prepare for next iteration
+        else:
+            self.log_error(f"Unknown strategy number {strategy_num}")
+            return
+
+        # Call the proper strategy function
 
         # Attack
         if strategy == Strategies.HEAVY_ATTACK:
