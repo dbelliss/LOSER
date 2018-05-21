@@ -39,23 +39,13 @@ class bcolors:
 #         return f"idle workers: {self.idle_workers}"
 
 class AgentSelector(LoserAgent):
-    def __init__(self, is_logging = False):
-        super().__init__()
-
-        # For debugging
-        self.is_logging = is_logging
-        if self.is_logging:
-
-            # Make logs directory if it doesn't exist
-            if not os.path.exists("./logs"):
-                os.mkdir("./logs")
-            self.log_file_name = "./logs/" + "AgentSelector_" + strftime("%Y-%m-%d %H:%M:%S", localtime()) + ".log"
-            self.log_file = open(self.log_file_name, "w+")  # Create log file based on the time
+    def __init__(self, is_logging = False, isMainAgent = False):
+        super().__init__(is_logging, "AgentSelector_", isMainAgent)
 
         print(bcolors.OKGREEN + "###AgentSelector Constructor" + bcolors.ENDC)
 
         # List of build orders
-        self.agents = [SafeRoachAgent(is_logging), SpawnPoolRavagerAgent(is_logging)]
+        self.agents = [SafeRoachAgent(), SpawnPoolRavagerAgent()]
 
         # Choose RandomBuild
         self.chooseRandomBuild()
@@ -78,7 +68,7 @@ class AgentSelector(LoserAgent):
         # self.agents[self.curAgentIndex].__init__()
 
     def fitness(self):
-        self.idle_workers = self.get_idle_workers
+        self.idle_workers = self.mainAgent.get_idle_workers
 
     def chooseRandomBuild(self):
         self.curAgentIndex = randint(0,1)
@@ -89,7 +79,7 @@ class AgentSelector(LoserAgent):
         print(bcolors.OKGREEN + "###RandomStrategyIndex: {}".format(self.strategies[self.strategiesIndex]) + bcolors.ENDC)
 
     async def on_step(self, iteration):
-        self.log("Step: %s Idle Workers: %s Overlord: %s Workers: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount), str(self.workers.amount)))
+        self.log("Step: %s Idle Workers: %s Overlord: %s Workers: %s" % (str(iteration), str(self.get_idle_workers), str(self.mainAgent.units(OVERLORD).amount), str(self.mainAgent.workers.amount)))
 
         # Run fitness on a certain number of steps
         if (iteration % self.stepsPerAgent == 0):
@@ -98,12 +88,12 @@ class AgentSelector(LoserAgent):
 
         # TODO
         # Call the current agent on_step
-        # await self.agents[self.curAgentIndex].on_step(iteration)
+        await self.agents[self.curAgentIndex].on_step(iteration)
 
 def main():
     # Start game with AgentSelector as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
-        Bot(Race.Zerg, AgentSelector(True)),
+        Bot(Race.Zerg, AgentSelector(True, True)),
         Computer(Race.Protoss, Difficulty.Medium)
     ], realtime=False)
 
