@@ -86,7 +86,10 @@ class SafeRoachAgent(LoserAgent):
         self.ultralisk_defense = None  # True if Chitinous Plating has been purchased
 
         # standard upgrades
-        # TODO
+        self.built_gas1 = False
+        self.moved_workers_to_gas1 = False # whether workers are assigned to the first vespene geyser
+        self.built_sp = False # whether a spawning pool was built
+
 
     async def on_step(self, iteration):
         self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
@@ -104,6 +107,7 @@ class SafeRoachAgent(LoserAgent):
 
         # ideas: spread creep to block expansions, spread to increase zergling defense, patrol with zerglings, spread
         # with overseer, changelings for vision (most bots/humans don't attack? follow the unit it finds)
+        # add checker for buildings, if any are missing (spawning pool, warren, etc, (re)build them)
 
         larvae = self.units(LARVA)
 
@@ -113,11 +117,16 @@ class SafeRoachAgent(LoserAgent):
             mf = self.state.mineral_field.closest_to(idle_worker)
             await self.do(idle_worker.gather(mf))
 
+        for extractor in self.units(EXTRACTOR):
+            if extractor.assigned_harvesters < extractor.ideal_harvesters:
+                print("finding extractor worker")
+                await self.do(self.workers.random.gather(extractor))
+
         if self.supply_left < 2 and self.base_build_order_complete is True:
             if self.can_afford(OVERLORD) and larvae.exists:
                 await self.do(larvae.random.train(OVERLORD))
 
-        if self.base_build_order_complete is True and self.can_afford(HATCHERY):
+        if self.base_build_order_complete is True and self.minerals > 600 and not self.already_pending(HATCHERY):
             self.hatcheries_built += 1
             location = await self.get_next_expansion()
             await self.build(HATCHERY, near=location)
@@ -156,7 +165,7 @@ class SafeRoachAgent(LoserAgent):
                     print("BUILD 3")
                     await self.do(larvae.random.train(DRONE))
 
-            if self.units(OVERLORD).amount == 2 and self.overlords_built is 1 and self.drones_built > 2:
+            if self.units(OVERLORD).amount == 2 and self.overlords_built == 1 and self.drones_built >= 2:
 
                 if self.drones_built == 2 and larvae.exists and self.can_afford(DRONE):
                     self.drones_built += 1
@@ -173,8 +182,6 @@ class SafeRoachAgent(LoserAgent):
                     print("6")
                     await self.do(larvae.random.train(DRONE))
 
-                print("hatcheries built: %s" % (str(self.hatcheries_built)))
-
                 if self.hatcheries_built == 0 and self.can_afford(HATCHERY) and not self.already_pending(HATCHERY):
                     print("entered, hatcheries build: %s" % (str(self.hatcheries_built)))
                     self.hatcheries_built += 1
@@ -182,13 +189,58 @@ class SafeRoachAgent(LoserAgent):
                     print("7")
                     await self.build(HATCHERY, near=location)
 
-                if self.drones_built == 5 and self.hatcheries_built is 1 and larvae.exists and self.can_afford(DRONE):
+                # experimental non-working pre-move worker for hatchery code, likely not worth pursuing
 
+                # if self.hatcheries_built == 0 and self.minerals > 200 and not self.already_pending(HATCHERY):
+                #     print("entered, hatcheries built: %s" % (str(self.hatcheries_built)))
+                #     location = await self.get_next_expansion()
+                #     print("7")
+                #     await self.do(self.workers.random.move(location))
+                #
+                # if self.hatcheries_built == 0 and self.can_afford(HATCHERY) and not self.already_pending(HATCHERY):
+                #     print("entered, hatcheries built2: %s" % (str(self.hatcheries_built)))
+                #     self.hatcheries_built += 1
+                #     await self.select_build_worker(location).build(HATCHERY)
+
+                if self.drones_built == 5 and self.hatcheries_built == 1 and larvae.exists and self.can_afford(DRONE):
+                    self.drones_built += 1
                     print("8")
                     await self.do(larvae.closest_to(self.units(HATCHERY).ready.first).train(DRONE))
 
+                if self.drones_built == 6 and self.hatcheries_built == 1 and larvae.exists and self.can_afford(DRONE):
+                    self.drones_built += 1
+                    print("9")
+                    await self.do(larvae.closest_to(self.units(HATCHERY).ready.first).train(DRONE))
+
+                if self.drones_built == 7 and self.can_afford(EXTRACTOR) and self.built_gas1 is False:
+                    print("Entered gas build")
+                    drone = self.workers.closest_to(self.units(HATCHERY).ready.first)
+                    target = self.state.vespene_geyser.closest_to(self.units(HATCHERY).ready.first)
+                    err = await self.do(drone.build(EXTRACTOR, target))
+                    if not err:
+                        self.built_gas1 = True
+
+                # if self.units(EXTRACTOR).ready.exists and not self.moved_workers_to_gas1:
+                #     self.moved_workers_to_gas1 = True
+                #     extractor1 = self.units(EXTRACTOR).first
+                #     for num in range(0,3):
+                #         print("Moved workers to gas")
+                #         await self.do(self.workers.closest_to(extractor1).gather(extractor1))
+
+                if self.drones_built == 7 and self.can_afford(SPAWNINGPOOL) and self.built_gas1 is True and self.built_sp is False:
+                    for d in range(4, 15):
+                        print("searching for a spot for sp")
+                        extractor1 = self.units(EXTRACTOR).first  # builds closer to extractor, toward center
+                        pos = extractor1.position.to2.towards(self.game_info.map_center, d)
+                        if await self.can_place(SPAWNINGPOOL, pos):
+                            drone = self.workers.closest_to(self.units(HATCHERY).ready.first)
+                            err = await self.do(drone.build(SPAWNINGPOOL, pos))
+                            if not err:
+                                self.built_sp = True
+                                break
+
         # checks if base build order requirements are done, allows for expansion of hatcheries at-will
-        if self.drones_built == 6 and self.hatcheries_built is 1:
+        if self.drones_built == 7 and self.moved_workers_to_gas1 is True and self.built_sp is True and self.base_build_order_complete is False:
             self.base_build_order_complete = True
             print("DONE WITH BASE BUILD ORDER")
 
@@ -198,7 +250,7 @@ def main():
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, SafeRoachAgent(True)),
         Computer(Race.Protoss, Difficulty.VeryHard)
-    ], realtime=True)
+    ], realtime=False)
 
 if __name__ == '__main__':
     main()
