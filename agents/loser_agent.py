@@ -15,19 +15,12 @@ import os
 import sys
 
 # Get strategy enums
-from sc2.position import Point3, Point2
 from strategies import Strategies
 
+from sc2.position import Point2
+
+
 class LoserAgent(sc2.BotAI):
-    base_top_left = None
-    overlord_built = False
-    larva_selected = False
-    drone_selected = False
-    spawning_pool_built = False
-    spawning_pool_selected = False
-    spawning_pool_rallied = False
-    army_selected = False
-    army_rallied = False
 
     def __init__(self, is_logging = False, is_printing_to_console = False):
         super().__init__()
@@ -114,7 +107,6 @@ class LoserAgent(sc2.BotAI):
         self.num_hyraliskdens_built = 0
         self.num_lairs_built = 0
         self.num_infestation_pits_built = 0
-        self.num_ravagerdens_built = 0
         self.num_lurkerdens_built = 0
         self.num_hives_built = 0
         self.num_ultralisk_caverns_built = 0
@@ -133,13 +125,21 @@ class LoserAgent(sc2.BotAI):
 
     '''
     Base on_step function
-    Will only do something if it is given a strategy_num
+    Uses basic_build and performs actions based on the current strategy
+    For now, strategies will change ever 100 steps
+    Harass strategies are not implemented yet
     '''
     async def on_step(self, iteration, strategy_num=0):
         # self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
         # self.log("Step: " + str(iteration))
 
-        strategy_num = (int)(iteration / 100) % 8
+        # TEMP: Until strategy is given by Q table
+        strategy_num = (int)(iteration / 75) % 8
+
+        # Build lings, queen, overlords, drones, and meleeattack1
+        await self.basic_build(iteration)
+
+        # Perform actions based on givne strategy
         if strategy_num == -1:
             self.log("No given strategy")
         else:
@@ -160,32 +160,38 @@ class LoserAgent(sc2.BotAI):
 
                 # Call the proper strategy function
                 await self.perform_strategy(iteration, strategy)
-
-                await self.basic_build(iteration)
             else:
                 # Not valid strategy num
                 self.log_error("Unknown strategy " + str(strategy_num))
 
     '''
     Builds a ton of lings
+    Build drones and start gathering vespene
+    Build a queen
+    Build overlords as needed
     '''
     async def basic_build(self, iteration):
-        hatchery = self.units(HATCHERY).ready.random
+        hatchery = self.bases.ready.random
         # Build overlords if close to reaching cap
-        if self.supply_used > self.supply_cap - 4 and self.units(LARVA).amount > 0 and self.can_afford(OVERLORD):
-            await self.do(self.units(LARVA).random.train(OVERLORD))
+        if self.supply_used > self.supply_cap - 4 and self.num_larva > 0 and self.can_afford(OVERLORD):
+            await self.do(self.random_larva.train(OVERLORD))
         else:
             # Build drones
             if self.units(DRONE).amount < 20 and self.can_afford(DRONE) and self.units(LARVA).amount > 0 and self.supply_used < self.supply_cap:
-                await self.do(self.units(LARVA).random.train(DRONE))
+                await self.do(self.random_larva.train(DRONE))
+
+            if self.units(HYDRALISKDEN).ready.exists and self.units(HYDRALISK).amount < 20 and self.supply_used < self.supply_cap - 3 \
+                    and self.can_afford(HYDRALISK) and self.num_larva > 0:
+                await self.do(self.random_larva.train(HYDRALISK))
 
             # Build lings
-            if self.units(ZERGLING).amount < 100 and self.can_afford(ZERGLING) and self.units(LARVA).amount > 0 and \
+            if self.units(ZERGLING).amount < 100 and self.can_afford(ZERGLING) and self.num_larva > 0 and \
                     self.supply_used < self.supply_cap - 1 and self.units(SPAWNINGPOOL).ready.exists:
-                await self.do(self.units(LARVA).random.train(ZERGLING))
+                await self.do(self.random_larva.train(ZERGLING))
         # Build Spawning pool
         if not self.units(SPAWNINGPOOL).exists and self.can_afford(SPAWNINGPOOL):
-            await self.build(SPAWNINGPOOL, near=hatchery)
+            p = hatchery.position.towards(self.game_info.map_center, 3)
+            await self.build(SPAWNINGPOOL, near=p)
 
         if self.num_extractors_built < 1 and self.can_afford(EXTRACTOR):
             self.num_extractors_built += 1
@@ -193,26 +199,58 @@ class LoserAgent(sc2.BotAI):
             target = self.state.vespene_geyser.closest_to(drone.position)
             await self.do(drone.build(EXTRACTOR, target))
 
+        # If Extractor does not have 3 drones, give it more drones
         for extractor in self.units(EXTRACTOR):
-            if extractor.assigned_harvesters < extractor.ideal_harvesters:
+            if extractor.assigned_harvesters < extractor.ideal_harvesters and self.workers.amount > 0:
                 await self.do(self.workers.random.gather(extractor))
+
         # Build Spawning pool
         if not self.units(EVOLUTIONCHAMBER).exists and self.can_afford(SPAWNINGPOOL):
-            await self.build(EVOLUTIONCHAMBER, near=hatchery)
+            p = hatchery.position.towards(self.game_info.map_center, 3)
+            await self.build(EVOLUTIONCHAMBER, near=p)
         elif self.can_afford(RESEARCH_ZERGMELEEWEAPONSLEVEL1) and self.melee1 == 0 and self.units(EVOLUTIONCHAMBER).ready.exists:
+            # Get melee1 upgrade
             self.melee1 = 1
             await self.do(self.units(EVOLUTIONCHAMBER).first(RESEARCH_ZERGMELEEWEAPONSLEVEL1))
 
-        if self.units(QUEEN).amount < 1 and self.units(SPAWNINGPOOL).ready.exists and self.can_afford(QUEEN) and self.supply_used < self.supply_cap - 1\
-                and not self.num_queens_built == 0:
+        # Build a queen if you haven't
+        if self.num_queens_built < 1 and self.units(SPAWNINGPOOL).ready.exists and self.can_afford(QUEEN) and \
+                self.supply_used < self.supply_cap - 1:
+            base = self.bases.random
             self.num_queens_built += 1
-            await self.do(self.units(HATCHERY).first(TRAINQUEEN_QUEEN))
+            await self.do(base.train(QUEEN))
 
+        # Inject larva when possible
         elif self.units(QUEEN).amount > 0:
             queen = self.units(QUEEN).first
             abilities = await self.get_available_abilities(queen)
             if AbilityId.EFFECT_INJECTLARVA in abilities:
                 await self.do(queen(EFFECT_INJECTLARVA, hatchery))
+
+        # Upgrade to lair when possible
+        if self.num_lairs_built == 0 and self.units(HATCHERY).amount > 0 and self.can_afford(UPGRADETOLAIR_LAIR) \
+                and self.units(SPAWNINGPOOL).ready.exists and self.units(QUEEN).amount > 0:
+            hatchery = self.units(HATCHERY).first
+            self.num_lairs_built += 1
+            err = await self.do(hatchery(UPGRADETOLAIR_LAIR))
+            if err:
+                self.num_lairs_built -= 1
+
+        # Build hydralisk den when possible
+        if not self.units(HYDRALISKDEN).exists and self.units(LAIR).amount > 0 and self.can_afford(HYDRALISKDEN) \
+                and self.num_hydralisks_built == 0:
+            p = hatchery.position.towards(self.game_info.map_center, 3)
+            self.num_hydralisks_built += 1
+            await self.build(HYDRALISKDEN, near=p)
+
+        # Build lurker den when possible
+        if self.num_lurkerdens_built == 0 and self.units(HYDRALISKDEN).ready.amount > 0 and \
+                self.can_afford(UPGRADETOLURKERDEN_LURKERDEN):
+            # await self.do(self.units(HYDRALISKDEN).first(UPGRADETOLURKERDEN_LURKERDEN ))
+            self.num_lurkerdens_built += 1
+            await self.do(self.units(HYDRALISKDEN).first(MORPH_LURKERDEN))
+
+
 
     '''
     Calls the correct strategy function given the strategy enum value
@@ -220,6 +258,7 @@ class LoserAgent(sc2.BotAI):
     '''
     async def perform_strategy(self, iteration, strategy):
         self.clean_strike_force()  # Clear dead units from strike force
+
         # Attack
         if strategy == Strategies.HEAVY_ATTACK:
             await self.heavy_attack(iteration)
@@ -395,7 +434,7 @@ class LoserAgent(sc2.BotAI):
 
 
     async def prepare_defenses(self, num_spine_crawlers_to_build, num_sporecrawlers_to_build, num_lurkers_to_build):
-        hatchery = self.units(HATCHERY).ready.random
+        hatchery = self.bases.ready.random
 
         # TODO: have some units go to expansions
         # Return all units to base
@@ -403,25 +442,36 @@ class LoserAgent(sc2.BotAI):
             if unit.distance_to(hatchery.position) > 20:
                 await self.do(unit.move(hatchery.position))
 
+
         # Build spine crawlers
         if self.units(SPAWNINGPOOL).ready.exists and self.num_spinecrawlers_built < num_spine_crawlers_to_build \
                 and self.can_afford(SPINECRAWLER):
-            await self.build(SPINECRAWLER, near=hatchery)
+            self.num_spinecrawlers_built += 1
+            p = hatchery.position.towards(self.game_info.map_center, 3)
+            await self.build(SPINECRAWLER, near=p)
 
         # Build spore crawlers
         if self.units(EVOLUTIONCHAMBER).ready.exists and self.num_sporecrawlers_built < num_sporecrawlers_to_build \
                 and self.can_afford(SPORECRAWLER):
-            await self.build(SPORECRAWLER, near=hatchery)
+            self.num_sporecrawlers_built += 1
+            p = hatchery.position.towards(self.game_info.map_center, 3)
+            await self.build(SPORECRAWLER, near=p)
 
 
-        # Build lurkers NOTE: Unable to test because I can't build a lair in sc2 viewer
-        if self.units(LURKERDEN).ready.exists and self.num_lurkers_built < num_lurkers_to_build \
-                and self.can_afford(LURKER):
-            await self.do(larvae.random.train(LURKER))
+        # Build lurkers
+        if self.units(LURKERDENMP).ready.exists and self.num_lurkers_built < num_lurkers_to_build \
+                and self.can_afford(MORPH_LURKER) and self.num_larva > 0 and self.units(HYDRALISK).amount > 0:
+            self.num_lurkers_built += 1
+            hydralisk = self.units(HYDRALISK).random
+            err = await self.do(hydralisk(MORPH_LURKER))
+            if err:
+                self.num_lurkers_built -= 1
 
         # Burrow all lurkers so they can attack
-        for lurker in self.units(LURKER):
-            await self.do(lurker(BURROWDOWN_LURKER))
+        for lurker in self.units(LURKERMP):
+            abilities = await self.get_available_abilities(lurker)
+            if AbilityId.BURROWDOWN_LURKER in abilities:
+                await self.do(lurker(BURROWDOWN_LURKER))
 
 
     '''
@@ -462,7 +512,8 @@ class LoserAgent(sc2.BotAI):
 
     @property
     def army(self):
-        return self.units - self.units(DRONE) - self.units(OVERLORD) - self.units(LARVA) - self.units(EGG)- self.buildings
+        return self.units - self.units(DRONE) - self.units(OVERLORD) - self.units(LARVA) - self.units(EGG) \
+               - self.units(QUEEN) - self.buildings - self.units(LURKERMPBURROWED)
 
     @property
     def overlords(self):
@@ -473,7 +524,8 @@ class LoserAgent(sc2.BotAI):
         return self.units(HATCHERY) + self.units(LAIR) + self.units(HIVE) + self.units(EXTRACTOR) + self.units(SPAWNINGPOOL) \
                + self.units(ROACHWARREN) + self.units(CREEPTUMOR) + self.units(EVOLUTIONCHAMBER) + self.units(HYDRALISKDEN) \
                + self.units(SPIRE) + self.units(GREATERSPIRE) + self.units(ULTRALISKCAVERN) + self.units(INFESTATIONPIT) \
-               + self.units(NYDUSNETWORK) + self.units(BANELINGNEST) + self.units(SPINECRAWLER) + self.units(SPORECRAWLER)
+               + self.units(NYDUSNETWORK) + self.units(BANELINGNEST) + self.units(SPINECRAWLER) + self.units(SPORECRAWLER) \
+                + self.units(LURKERDEN) + self.units(LURKERDENMP)
 
     @property
     def bases(self):
@@ -502,33 +554,14 @@ class LoserAgent(sc2.BotAI):
         return self.enemy_start_locations[0].position
 
     @property
-    def get_minerals(self):
-        """Get the current amount of minerals"""
-        return self.minerals
-
-    @property
-    def get_vespene(self):
-        """Get the current amount of vespene"""
-        return self.vespene
-
-    @property
-    def get_remaining_supply(self):
-        """Get remaining supply"""
-        return self.supply_left
-
-    @property
-    def get_workers(self):
-        """Get the current amount of drones"""
-        return self.workers.amount
-
-    @property
-    def get_idle_workers(self):
-        return self.workers.idle.amount
-
-    @property
-    def get_larva_num(self):
+    def num_larva(self):
         """Get the current amount of larva"""
         return self.units(LARVA).amount
+
+    @property
+    def random_larva(self):
+        """Get a random larva"""
+        return self.units(LARVA).random
 
     '''
     Prints to console if self.is_printing_to_console
