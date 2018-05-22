@@ -66,6 +66,7 @@ class SafeRoachAgent(LoserAgent):
 
         # Number of BUILT units, different from number of unit types
         self.creeptumors_built = 0  # number of built creep tumors
+        self.creeptumors_built_queen = 0 # number of seed creep tumors built by queens
         self.drones_built = 0  # number of built drones
         self.overlords_built = 0  # number of overlords built
         self.hatcheries_built = 0  # number of hatcheries built
@@ -122,7 +123,7 @@ class SafeRoachAgent(LoserAgent):
                 print("finding extractor worker")
                 await self.do(self.workers.random.gather(extractor))
 
-        if self.supply_left < 2 and self.base_build_order_complete is True:
+        if self.supply_left < 4 and self.base_build_order_complete is True:
             if self.can_afford(OVERLORD) and larvae.exists:
                 await self.do(larvae.random.train(OVERLORD))
 
@@ -133,19 +134,57 @@ class SafeRoachAgent(LoserAgent):
 
         for queen in self.units(QUEEN).idle:
             abilities = await self.get_available_abilities(queen)
-            if AbilityId.BUILD_CREEPTUMOR_QUEEN in abilities and self.creeptumors_built is 0:
-                self.creeptumors_built += 1
-                await self.do(queen(BUILD_CREEPTUMOR_QUEEN, near=hatchery))
-            if AbilityId.EFFECT_INJECTLARVA in abilities:
-                await self.do(queen(EFFECT_INJECTLARVA, hatchery))
+            if AbilityId.BUILD_CREEPTUMOR_QUEEN in abilities and self.creeptumors_built_queen < 4:
+                # while True:
+                #     print("trying to build creep tumor")
+                    # err2 = await self.build(CREEPTUMOR, near=self.units(HATCHERY).first, max_distance=20, unit=queen)
+                    # if not err2:
+                    #     print("First tumor built")
+                    #     self.creeptumors_built += 1
+                    #     break
+
+                for d in range(1, 10):
+                    print("searching for a spot for tumor")
+                    pos = queen.position.to2.towards(self.game_info.map_center, d)
+                    if self.can_place(CREEPTUMOR, pos):
+                        err = await self.do(queen(BUILD_CREEPTUMOR_QUEEN, pos))
+                        if not err:
+                            print("First tumors built")
+                            self.creeptumors_built_queen += 1
+                            break
+
+            elif AbilityId.BUILD_CREEPTUMOR_QUEEN in abilities and self.creeptumors_built_queen >= 4 and \
+                    self.units(CREEPTUMORBURROWED).ready.amount < 4:
+                print("going into backup because ready what ", self.units(CREEPTUMOR).ready.amount)
+                for d in range(1, 10):
+                    print("searching for a spot for tumor backup")
+                    pos = queen.position.to2.towards(self.game_info.map_center, d)
+                    # if await self.can_place(CREEPTUMOR, pos):
+                    if self.can_place(CREEPTUMOR, pos):
+                        err = await self.do(queen(BUILD_CREEPTUMOR_QUEEN, pos))
+                        if not err:
+                            print("Backup tumors built")
+                            self.creeptumors_built_queen += 1
+                            break
+
+            elif AbilityId.EFFECT_INJECTLARVA in abilities:
+                injection_target = self.units(HATCHERY).ready.closest_to(queen.position)
+                await self.do(queen(EFFECT_INJECTLARVA, injection_target))
 
         # queen sets down one tumor, then tumor self-spreads
 
-        for tumor in self.units(CREEPTUMOR).idle:
+        for tumor in self.units(CREEPTUMORBURROWED).ready:
             abilities = await self.get_available_abilities(tumor)
             if AbilityId.BUILD_CREEPTUMOR_TUMOR in abilities:
                 self.creeptumors_built += 1
-                await self.do(tumor(BUILD_CREEPTUMOR_TUMOR, near=tumor))
+                for d in range(5, 10):
+                    pos = tumor.position.towards_with_random_angle(target, d)
+                    if self.can_place(CREEPTUMOR, pos):
+                        err = await self.do(tumor(BUILD_CREEPTUMOR_TUMOR, pos))
+                        if err:
+                            print("didn't build tumor2")
+                        # else:
+                        #     print("built tumor2")
 
         # strict build order begins here
         if self.base_build_order_complete is False:
@@ -239,6 +278,39 @@ class SafeRoachAgent(LoserAgent):
                                 self.built_sp = True
                                 break
 
+                if self.drones_built == 7 and self.built_sp is True and self.can_afford(DRONE) and larvae.exists:
+                    self.drones_built += 1
+                    print("10")
+                    await self.do(larvae.closest_to(self.units(HATCHERY).ready.first).train(DRONE))
+
+                if self.drones_built == 8 and self.built_sp is True and self.can_afford(DRONE) and larvae.exists:
+                    self.drones_built += 1
+                    print("11")
+                    await self.do(larvae.closest_to(self.units(HATCHERY).ready.first).train(DRONE))
+
+                if self.drones_built == 9 and self.built_sp is True and self.can_afford(DRONE) and larvae.exists:
+                    self.drones_built += 1
+                    print("12")
+                    await self.do(larvae.closest_to(self.units(HATCHERY).ready.first).train(DRONE))
+
+                if larvae.exists and self.can_afford(OVERLORD) and self.drones_built == 10:
+                    self.overlords_built += 1
+                    print("13")
+                    await self.do(larvae.closest_to(self.units(HATCHERY).ready.first).train(OVERLORD))
+
+            # 2nd hatchery should be finished now
+            if self.units(SPAWNINGPOOL).ready.exists:
+                if self.drones_built == 10 and self.units(HATCHERY).ready.amount == 2 and self.minerals >= 300 and self.num_queens_built == 0:
+                    noqueue = 0
+                    for hatchery in self.units(HATCHERY):
+                        if noqueue == 2:
+                            break
+                        if hatchery.noqueue:
+                            print("built queen")
+                            self.num_queens_built += 1
+                            noqueue += 1
+                            await self.do(hatchery.train(QUEEN))
+
         # checks if base build order requirements are done, allows for expansion of hatcheries at-will
         if self.drones_built == 7 and self.moved_workers_to_gas1 is True and self.built_sp is True and self.base_build_order_complete is False:
             self.base_build_order_complete = True
@@ -251,6 +323,7 @@ def main():
         Bot(Race.Zerg, SafeRoachAgent(True)),
         Computer(Race.Protoss, Difficulty.VeryHard)
     ], realtime=False)
+
 
 if __name__ == '__main__':
     main()
