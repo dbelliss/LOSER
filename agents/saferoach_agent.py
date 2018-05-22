@@ -155,7 +155,7 @@ class SafeRoachAgent(LoserAgent):
 
             elif AbilityId.BUILD_CREEPTUMOR_QUEEN in abilities and self.creeptumors_built_queen >= 4 and \
                     self.units(CREEPTUMORBURROWED).ready.amount < 4:
-                print("going into backup because ready what ", self.units(CREEPTUMOR).ready.amount)
+                print("going into backup because only", self.units(CREEPTUMOR).ready.amount, "tumors are left ready")
                 for d in range(1, 10):
                     print("searching for a spot for tumor backup")
                     pos = queen.position.to2.towards(self.game_info.map_center, d)
@@ -298,7 +298,7 @@ class SafeRoachAgent(LoserAgent):
                     print("13")
                     await self.do(larvae.closest_to(self.units(HATCHERY).ready.first).train(OVERLORD))
 
-            # 2nd hatchery should be finished now
+            # 2nd hatchery should be finished now, simultaneously builds queens when 1st expansion is done at both hatcheries
             if self.units(SPAWNINGPOOL).ready.exists:
                 if self.drones_built == 10 and self.units(HATCHERY).ready.amount == 2 and self.minerals >= 300 and self.num_queens_built == 0:
                     noqueue = 0
