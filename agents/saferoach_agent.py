@@ -134,6 +134,7 @@ class SafeRoachAgent(LoserAgent):
 
         for queen in self.units(QUEEN).idle:
             abilities = await self.get_available_abilities(queen)
+            # makes 4 starting tumors by default
             if AbilityId.BUILD_CREEPTUMOR_QUEEN in abilities and self.creeptumors_built_queen < 4:
                 # while True:
                 #     print("trying to build creep tumor")
@@ -153,6 +154,7 @@ class SafeRoachAgent(LoserAgent):
                             self.creeptumors_built_queen += 1
                             break
 
+            # recreates tumors when the number of tumors drops too low
             elif AbilityId.BUILD_CREEPTUMOR_QUEEN in abilities and self.creeptumors_built_queen >= 4 and \
                     self.units(CREEPTUMORBURROWED).ready.amount < 4:
                 print("going into backup because only", self.units(CREEPTUMOR).ready.amount, "tumors are left ready")
@@ -172,7 +174,6 @@ class SafeRoachAgent(LoserAgent):
                 await self.do(queen(EFFECT_INJECTLARVA, injection_target))
 
         # queen sets down one tumor, then tumor self-spreads
-
         for tumor in self.units(CREEPTUMORBURROWED).ready:
             abilities = await self.get_available_abilities(tumor)
             if AbilityId.BUILD_CREEPTUMOR_TUMOR in abilities:
