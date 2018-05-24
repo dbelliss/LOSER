@@ -4,6 +4,8 @@ from sc2 import Race, Difficulty
 from sc2.constants import *
 from sc2.player import Bot, Computer
 
+from math import pi
+
 from pprint import pprint
 from time import gmtime, strftime, localtime
 import os
@@ -66,12 +68,15 @@ class SafeRoachAgent(LoserAgent):
 
         # Number of BUILT units, different from number of unit types
         self.creeptumors_built = 0  # number of built creep tumors
-        self.creeptumors_built_queen = 0 # number of seed creep tumors built by queens
+        self.creeptumors_built_queen = 0  # number of seed creep tumors built by queens
         self.drones_built = 0  # number of built drones
         self.overlords_built = 0  # number of overlords built
         self.hatcheries_built = 0  # number of hatcheries built
+        self.rebuild_viable_tumor = 0  # number of viable tumors rebuilt
 
+        # checks for true/false
         self.base_build_order_complete = False  # checks if base build order is complete
+        self.viable_tumor = True  # checks if there's a tumor that can spawn other tumors
 
         # non-standard upgrades purchased
         self.can_burrow = None # true if Burrow has been purchased
@@ -90,7 +95,6 @@ class SafeRoachAgent(LoserAgent):
         self.built_gas1 = False
         self.moved_workers_to_gas1 = False # whether workers are assigned to the first vespene geyser
         self.built_sp = False # whether a spawning pool was built
-
 
     async def on_step(self, iteration):
         self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
@@ -155,8 +159,9 @@ class SafeRoachAgent(LoserAgent):
                             break
 
             # recreates tumors when the number of tumors drops too low
-            elif AbilityId.BUILD_CREEPTUMOR_QUEEN in abilities and self.creeptumors_built_queen >= 4 and \
-                    self.units(CREEPTUMORBURROWED).ready.amount < 4:
+            elif AbilityId.BUILD_CREEPTUMOR_QUEEN in abilities and self.viable_tumor is False and \
+                    self.creeptumors_built_queen >= 4 and self.rebuild_viable_tumor < 4 and\
+                    not self.already_pending(CREEPTUMOR):
                 print("going into backup because only", self.units(CREEPTUMOR).ready.amount, "tumors are left ready")
                 for d in range(1, 10):
                     print("searching for a spot for tumor backup")
@@ -167,25 +172,34 @@ class SafeRoachAgent(LoserAgent):
                         if not err:
                             print("Backup tumors built")
                             self.creeptumors_built_queen += 1
+                            self.rebuild_viable_tumor += 1
                             break
 
             elif AbilityId.EFFECT_INJECTLARVA in abilities:
                 injection_target = self.units(HATCHERY).ready.closest_to(queen.position)
                 await self.do(queen(EFFECT_INJECTLARVA, injection_target))
 
+        # sets viable_tumor to false so that if one is found, it's set to true for the next iteration through the above
+        self.viable_tumor = False
+
         # queen sets down one tumor, then tumor self-spreads
         for tumor in self.units(CREEPTUMORBURROWED).ready:
             abilities = await self.get_available_abilities(tumor)
             if AbilityId.BUILD_CREEPTUMOR_TUMOR in abilities:
-                self.creeptumors_built += 1
+                self.viable_tumor = True
                 for d in range(5, 10):
-                    pos = tumor.position.towards_with_random_angle(target, d)
+                    pos = tumor.position.towards_with_random_angle(target, d, max_difference=pi/2)
                     if self.can_place(CREEPTUMOR, pos):
                         err = await self.do(tumor(BUILD_CREEPTUMOR_TUMOR, pos))
                         if err:
                             print("didn't build tumor2")
-                        # else:
-                        #     print("built tumor2")
+                        else:
+                            self.creeptumors_built += 1
+                        # print("built tumor2")
+
+        # resets viable_tumor here so that if four have been built but they all die, more gets rebuilt
+        if self.rebuild_viable_tumor >= 4:
+            self.rebuild_viable_tumor = 0
 
         # strict build order begins here
         if self.base_build_order_complete is False:
