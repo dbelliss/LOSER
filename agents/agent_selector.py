@@ -1,33 +1,93 @@
 #!/usr/bin/python3
 # https://chatbotslife.com/building-a-basic-pysc2-agent-b109cde1477c
-from pysc2.agents import base_agent
-from pysc2.lib import actions
-from pysc2.lib import features
+# Debug imports
 from pprint import pprint
-import smart_agent
-import simple_agent
-import loser_agent
+from time import gmtime, strftime, localtime
+import sys
+import os
+# python-sc2 imports
+import sc2
+from sc2 import Race, Difficulty
+from sc2.constants import *
+from sc2.player import Bot, Computer
+
+# agent imports
+from loser_agent import *
+from saferoach_agent import SafeRoachAgent
+from zerglingBanelingRush_agent import SpawnPoolRavagerAgent
 import time
 
 
-class AgentSelector(base_agent.BaseAgent):
-    def __init__(self):
-        super().__init__()
-        self.agents = [simple_agent.SimpleAgent(), smart_agent.SmartAgent()]
-        # self.agents = [loser_agent.LoserAgent(True)]
+# Coloring for terminal output
+# https://stackoverflow.com/questions/287871/print-in-terminal-with-colors
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+UNDERLINE = '\033[4m'
+
+
+class AgentSelector(LoserAgent):
+    def __init__(self, is_logging = False, is_printing_to_console = False, isMainAgent = False):
+        super().__init__(is_logging, is_printing_to_console, isMainAgent, "AgentSelector_")
+        print(bcolors.OKGREEN + "###AgentSelector Constructor" + bcolors.ENDC)
+
+        # List of build orders
+        self.agents = [LoserAgent()]
+
+        # Choose RandomBuild
+        self.chooseRandomBuild()
+
+        # List of strategies
+        self.strategies = ["Aggressive", "Defensive"]
+
+        # Choose RandomStrategy
+        self.chooseRandomStrategy()
+
+        # Properties
         self.stepsPerAgent = 100
         self.curAgentIndex = 0
+        self.strategiesIndex = 0
         self.curStep = 0
         self.timesSwitched = 0
 
-    def step(self, time_step):
-        super().step(time_step)
+        # TODO
+        # Call constructor for current agent
+        # self.agents[self.curAgentIndex].__init__()
 
-        self.curStep += 1
-        if self.curStep == self.stepsPerAgent:
-            self.curStep = 0
-            self.curAgentIndex = (self.curAgentIndex + 1) % len(self.agents)
-            self.agents[self.curAgentIndex].ResetBeliefState()
-            self.timesSwitched += 1
+    def fitness(self):
+        self.idle_workers = self.mainAgent.workers.idle.amount
 
-        return self.agents[self.curAgentIndex].step(time_step)
+    def chooseRandomBuild(self):
+        self.curAgentIndex = 0
+        print(bcolors.OKGREEN + "###RandomBuildIndex: {}".format(self.agents[self.curAgentIndex]) + bcolors.ENDC)
+
+    def chooseRandomStrategy(self):
+        self.strategiesIndex = 0
+        print(bcolors.OKGREEN + "###RandomStrategyIndex: {}".format(self.strategies[self.strategiesIndex]) + bcolors.ENDC)
+
+    async def on_step(self, iteration):
+        self.log("Step: %s Idle Workers: %s Overlord: %s Workers: %s" % (str(iteration), str(self.mainAgent.workers.idle.amount), str(self.mainAgent.units(OVERLORD).amount), str(self.mainAgent.workers.amount)))
+
+        # Run fitness on a certain number of steps
+        if (iteration % self.stepsPerAgent == 0):
+            print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
+            self.fitness()
+
+        # TODO
+        # Call the current agent on_step
+        await self.agents[self.curAgentIndex].on_step(iteration)
+
+def main():
+    # Start game with AgentSelector as the Bot, and begin logging
+    sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
+        Bot(Race.Zerg, AgentSelector(True, True, True)),
+        Computer(Race.Protoss, Difficulty.Medium)
+    ], realtime=False)
+
+if __name__ == '__main__':
+    main()
