@@ -1,6 +1,7 @@
 import math
+import numpy
 from keras.models import Sequential
-from keras.layers import Dense, Activation
+from keras.layers import Dense, Activation, Flatten
 from keras.optimizers import SGD
 from keras.callbacks import Callback
 from keras import backend as K
@@ -22,10 +23,10 @@ class NeuralNetwork():
         self.model.compile(optimizer=sgd, loss='mean_squared_error')
 
     def train(self, inputs, outputs):
-        self.model.fit(inputs, outputs, epochs=self.epochs)
+        self.model.fit(numpy.array(inputs), numpy.array(outputs), epochs=self.epochs, verbose=0)
 
     def predict(self, inputs):
-        return self.model.predict(inputs)
+        return self.model.predict(numpy.array(inputs))
 
     def saveWeights(self):
         try:
