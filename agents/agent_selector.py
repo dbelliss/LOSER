@@ -60,18 +60,17 @@ class AgentSelector(LoserAgent):
         self.curStep = 0
         self.timesSwitched = 0
 
-        self.prevInputs = [0]
+        # number of calculated inputs such as army size, mineral rate, etc. prevInput list must be same length as this value
+        self.nInputs = 11
+
+        self.prevInputs = [0] * self.nInputs
         self.prevAgent = 0
         self.prevStrategy = 0
         self.lastFitness = 0
 
-        # number of calculated inputs such as army size, mineral rate, etc. prevInput list must be same length as this value
-        self.nInputs = 11
-
         # inputs = nData inputs + nAgents (for last agent selected) + nStrategies (for last strategy selected)
         # outputs = nAgents
         self.agentNN = NeuralNetwork(self.nInputs + self.nAgents + self.nStrategies, self.nAgents, 1, 1, 100)
-        print(bcolors.OKBLUE + "###size: {}".format(self.nInputs + self.nAgents + self.nStrategies) + bcolors.ENDC)
 
         # inputs = nData inputs + 2 * nAgents (for last and current agent selected) + nStrategies (for last strategy selected)
         # outputs = nStrategies
@@ -152,10 +151,11 @@ class AgentSelector(LoserAgent):
 
     async def on_step(self, iteration):
         # self.log("Step: %s Idle Workers: %s Overlord: %s Workers: %s " % (str(iteration), str(self.mainAgent.workers.idle.amount), str(self.mainAgent.units(OVERLORD).amount), str(self.mainAgent.workers.amount)))
-        self.log("Normalize inputs: %s" % (str(self.mainAgent.normalize_inputs())))
+        # self.log("Normalize inputs: %s" % (str(self.mainAgent.normalize_inputs())))
 
         # Run fitness on a certain number of steps
         if (iteration % self.stepsPerAgent == 0):
+            self.log(bcolors.OKBLUE + "Normalize inputs: %s" % (str(self.mainAgent.normalize_inputs())) + bcolors.ENDC)
             print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
             self.learn()
             self.selectNewAgentsAndStrategies()
@@ -209,7 +209,6 @@ class AgentSelector(LoserAgent):
         #define other inputs to NN
         # curInputs = [0]
         curInputs = self.mainAgent.normalize_inputs()
-        print(bcolors.OKBLUE + "###normalize_inputs: {}".format(curInputs) + bcolors.ENDC)
 
         #create list for all the inputs to the neural network
         curAgent = [0] * self.nAgents
@@ -221,9 +220,8 @@ class AgentSelector(LoserAgent):
 
         #appends all the input lists together, also puts them into lists of lists for the NN
         # ie [1, 2, 3] + [4, 5] => [[1, 2, 3, 4 ,5]]
-        print(bcolors.OKBLUE + "###curInputs: {} curAgent: {} curStrategy:{}".format(curInputs, curAgent, curStrategy) + bcolors.ENDC)
         agentInputList = [curInputs + curAgent + curStrategy]
-        print(bcolors.OKBLUE + "###agentInputList: {}".format(agentInputList) + bcolors.ENDC)
+        print(bcolors.WARNING + "###agentInputList: {}".format(agentInputList) + bcolors.ENDC)
         self.log("Predicting agentNN with inputs: {0}".format(str(agentInputList)))
 
         nextAgent = self.agentNN.predict(agentInputList)[0].tolist() #extract first row from returned numpy array
