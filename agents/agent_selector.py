@@ -131,6 +131,18 @@ class AgentSelector(LoserAgent):
     def enemy_count(self):
         return self.mainAgent.known_enemy_units.amount
 
+    # TODO Add worker breakdown and ground army breakdown
+    def enemy_breakdown(self):
+        flying_army = 0
+        buildings = 0
+        workers = 0
+        for enemies in self.mainAgent.known_enemy_units:
+            if enemies.is_flying:
+                flying_army = flying_army + 1
+            if enemies.is_structure:
+                buildings = buildings + 1
+        return flying_army, buildings
+
     def enemy_building_count(self):
         return self.mainAgent.known_enemy_structures.amount
 
