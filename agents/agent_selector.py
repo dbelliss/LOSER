@@ -31,7 +31,7 @@ class bcolors:
     FAIL = '\033[91m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
-UNDERLINE = '\033[4m'
+    UNDERLINE = '\033[4m'
 
 
 class AgentSelector(LoserAgent):
@@ -66,11 +66,12 @@ class AgentSelector(LoserAgent):
         self.lastFitness = 0
 
         # number of calculated inputs such as army size, mineral rate, etc. prevInput list must be same length as this value
-        self.nInputs = 1
+        self.nInputs = 11
 
         # inputs = nData inputs + nAgents (for last agent selected) + nStrategies (for last strategy selected)
         # outputs = nAgents
         self.agentNN = NeuralNetwork(self.nInputs + self.nAgents + self.nStrategies, self.nAgents, 1, 1, 100)
+        print(bcolors.OKBLUE + "###size: {}".format(self.nInputs + self.nAgents + self.nStrategies) + bcolors.ENDC)
 
         # inputs = nData inputs + 2 * nAgents (for last and current agent selected) + nStrategies (for last strategy selected)
         # outputs = nStrategies
@@ -207,7 +208,7 @@ class AgentSelector(LoserAgent):
 
         #define other inputs to NN
         # curInputs = [0]
-        curInputs = numpy.array(self.mainAgent.normalize_inputs())
+        curInputs = self.mainAgent.normalize_inputs()
         print(bcolors.OKBLUE + "###normalize_inputs: {}".format(curInputs) + bcolors.ENDC)
 
         #create list for all the inputs to the neural network
@@ -222,6 +223,7 @@ class AgentSelector(LoserAgent):
         # ie [1, 2, 3] + [4, 5] => [[1, 2, 3, 4 ,5]]
         print(bcolors.OKBLUE + "###curInputs: {} curAgent: {} curStrategy:{}".format(curInputs, curAgent, curStrategy) + bcolors.ENDC)
         agentInputList = [curInputs + curAgent + curStrategy]
+        print(bcolors.OKBLUE + "###agentInputList: {}".format(agentInputList) + bcolors.ENDC)
         self.log("Predicting agentNN with inputs: {0}".format(str(agentInputList)))
 
         nextAgent = self.agentNN.predict(agentInputList)[0].tolist() #extract first row from returned numpy array
