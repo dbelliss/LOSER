@@ -18,6 +18,7 @@ from zerglingBanelingRush_agent import SpawnPoolRavagerAgent
 from NeuralNetwork import NeuralNetwork
 from strategies import Strategies
 import time
+import numpy
 
 
 # Coloring for terminal output
@@ -205,7 +206,9 @@ class AgentSelector(LoserAgent):
     def selectNewAgentsAndStrategies(self):
 
         #define other inputs to NN
-        curInputs = [0]
+        # curInputs = [0]
+        curInputs = numpy.array(self.mainAgent.normalize_inputs())
+        print(bcolors.OKBLUE + "###normalize_inputs: {}".format(curInputs) + bcolors.ENDC)
 
         #create list for all the inputs to the neural network
         curAgent = [0] * self.nAgents
@@ -217,6 +220,7 @@ class AgentSelector(LoserAgent):
 
         #appends all the input lists together, also puts them into lists of lists for the NN
         # ie [1, 2, 3] + [4, 5] => [[1, 2, 3, 4 ,5]]
+        print(bcolors.OKBLUE + "###curInputs: {} curAgent: {} curStrategy:{}".format(curInputs, curAgent, curStrategy) + bcolors.ENDC)
         agentInputList = [curInputs + curAgent + curStrategy]
         self.log("Predicting agentNN with inputs: {0}".format(str(agentInputList)))
 
