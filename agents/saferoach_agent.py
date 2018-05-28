@@ -73,7 +73,16 @@ class SafeRoachAgent(LoserAgent):
         self.overlords_built = 0  # number of overlords built
         self.hatcheries_built = 0  # number of hatcheries built
         self.rebuild_viable_tumor = 0  # number of viable tumors rebuilt
+        self.zerglings_built = 0  # number of zerglings built
+        self.queens_built = 0  # number of queens built
 
+        self.drone_gapnum = 0  # gap in missing drones
+        self.drone_gapnumcounter = 0  # counter for replenishing drones
+        self.done_gap_closing = False  # closed gap boolean
+        
+        self.queen_gapnum = 0  # gap in missing queens
+        self.queen_gapnumcounter = 0  # counter for replenishing queens
+        
         # checks for true/false
         self.base_build_order_complete = False  # checks if base build order is complete
         self.viable_tumor = True  # checks if there's a tumor that can spawn other tumors
@@ -95,6 +104,7 @@ class SafeRoachAgent(LoserAgent):
         self.built_gas1 = False
         self.moved_workers_to_gas1 = False # whether workers are assigned to the first vespene geyser
         self.built_sp = False # whether a spawning pool was built
+        self.research_zmb = False # whether RESEARCH_ZERGLINGMETABOLICBOOST was performed
 
     async def on_step(self, iteration):
         self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
@@ -127,14 +137,62 @@ class SafeRoachAgent(LoserAgent):
                 print("finding extractor worker")
                 await self.do(self.workers.random.gather(extractor))
 
-        if self.supply_left < 4 and self.base_build_order_complete is True:
-            if self.can_afford(OVERLORD) and larvae.exists:
-                await self.do(larvae.random.train(OVERLORD))
+        # actions to take only if build order is complete
 
-        if self.base_build_order_complete is True and self.minerals > 600 and not self.already_pending(HATCHERY):
-            self.hatcheries_built += 1
-            location = await self.get_next_expansion()
-            await self.build(HATCHERY, near=location)
+        if self.base_build_order_complete is True:
+            if self.supply_left < 4:
+                if self.can_afford(OVERLORD) and larvae.exists:
+                    await self.do(larvae.random.train(OVERLORD))
+
+            if self.minerals > 600 and not self.already_pending(HATCHERY):
+                self.hatcheries_built += 1
+                location = await self.get_next_expansion()
+                await self.build(HATCHERY, near=location)
+
+            # drone replenishing code
+            # takes into account the number of drones missing because .amount doesn't count in-progress units
+            # builds drones until the counter hits the same number as the calculated gap in unit number
+            # should work if units die because it recalculates and only resets when the .amount == desired # of workers
+
+            if self.workers.amount < (self.units(HATCHERY).ready.amount * 16):
+                self.drone_gapnum = (self.units(HATCHERY).ready.amount * 16) - self.workers.amount
+                if self.can_afford(DRONE) and larvae.exists and self.drone_gapnumcounter < self.drone_gapnum \
+                        and self.supply_left >= 1 and not self.done_gap_closing:
+                    self.drones_built += 1
+                    self.drone_gapnumcounter += 1
+                    print("Replenished missing/dead drone ", self.drones_built)
+                    await self.do(larvae.random.train(DRONE))
+                elif self.drone_gapnumcounter >= self.drone_gapnum:
+                    # experimental to see which works vs queen which seems to work
+                    # the issue is that drones be destroyed mid-build, maybe wait (# of steps * number building)
+                    # and check again? maybe check if eggs were destroyed?
+                    self.done_gap_closing = True
+                    pass
+
+            if self.workers.amount >= (self.units(HATCHERY).ready.amount * 16):
+                self.drone_gapnumcounter = 0
+                self.done_gap_closing = False
+
+            # queen replenishing code, similar to above drone code
+            
+            if self.units(QUEEN).amount < 6:
+                self.queen_gapnum = 6 - self.workers.amount
+                if self.can_afford(QUEEN) and self.queen_gapnumcounter < self.queen_gapnum and self.supply_left > 4:
+                    err = await self.do(self.units(HATCHERY).ready.random.train(QUEEN))
+                    if not err:
+                        self.queens_built += 1
+                        self.queen_gapnumcounter += 1
+                        print("Replenished missing/dead queen ", self.queens_built)
+
+                elif self.queen_gapnumcounter >= self.queen_gapnum:
+                    pass
+
+            if self.units(QUEEN).amount >= 6:
+                self.queen_gapnumcounter = 0
+
+        # swap if statements for priority, add minimum drone count of hatcheries * 16
+        # if enemy known units includes air, change build? add more spore crawlers?
+        # spore crawlers are better clustered, build one near hatchery then build others near spore crawlers
 
         for queen in self.units(QUEEN).idle:
             abilities = await self.get_available_abilities(queen)
@@ -237,7 +295,7 @@ class SafeRoachAgent(LoserAgent):
                     await self.do(larvae.random.train(DRONE))
 
                 if self.hatcheries_built == 0 and self.can_afford(HATCHERY) and not self.already_pending(HATCHERY):
-                    print("entered, hatcheries build: %s" % (str(self.hatcheries_built)))
+                    print("entered, hatcheries built: %s" % (str(self.hatcheries_built)))
                     self.hatcheries_built += 1
                     location = await self.get_next_expansion()
                     print("7")
@@ -313,21 +371,63 @@ class SafeRoachAgent(LoserAgent):
                     print("13")
                     await self.do(larvae.closest_to(self.units(HATCHERY).ready.first).train(OVERLORD))
 
-            # 2nd hatchery should be finished now, simultaneously builds queens when 1st expansion is done at both hatcheries
+            # 2nd hatchery should be finished now, simultaneously builds queens when 1st expansion is done at both
+            # hatcheries
             if self.units(SPAWNINGPOOL).ready.exists:
-                if self.drones_built == 10 and self.units(HATCHERY).ready.amount == 2 and self.minerals >= 300 and self.num_queens_built == 0:
+                if self.drones_built == 10 and self.units(HATCHERY).ready.amount == 2 and self.minerals >= 300 and self.queens_built == 0:
                     noqueue = 0
                     for hatchery in self.units(HATCHERY):
                         if noqueue == 2:
                             break
                         if hatchery.noqueue:
                             print("built queen")
-                            self.num_queens_built += 1
+                            self.queens_built += 1
                             noqueue += 1
                             await self.do(hatchery.train(QUEEN))
 
+            if self.queens_built == 2 and self.can_afford(ZERGLING) and larvae.exists and self.zerglings_built < 4:
+                self.zerglings_built += 1
+                print("TRAINING ZERGLING ", self.zerglings_built)
+                await self.do(larvae.random.train(ZERGLING))
+
+            if self.zerglings_built == 4 and self.can_afford(RESEARCH_ZERGLINGMETABOLICBOOST) and self.research_zmb is False:
+                self.research_zmb = True
+                print("RESEARCH ZMB")
+                await self.do(self.units(SPAWNINGPOOL).ready.first(RESEARCH_ZERGLINGMETABOLICBOOST))
+
+            if self.research_zmb is True and self.can_afford(ZERGLING) and larvae.exists and self.zerglings_built < 6:
+                self.zerglings_built += 1
+                print("TRAINING ZERGLING ", self.zerglings_built)
+                await self.do(larvae.random.train(ZERGLING))
+
+            if self.zerglings_built == 6 and self.can_afford(HATCHERY) and self.hatcheries_built == 1 and not self.already_pending(HATCHERY):
+                print("entered, hatcheries built: %s" % (str(self.hatcheries_built)))
+                self.hatcheries_built += 1
+                location = await self.get_next_expansion()
+                print("2nd hatchery")
+                await self.build(HATCHERY, near=location)
+
+            if self.hatcheries_built == 2 and self.can_afford(OVERLORD) and larvae.exists and self.overlords_built == 2:
+                self.overlords_built += 1
+                print("building overlord ", self.overlords_built)
+                await self.do(larvae.random.train(OVERLORD))
+
+            if self.overlords_built == 3 and self.can_afford(QUEEN) and self.queens_built == 2:
+                noqueue = 0
+                for hatchery in self.units(HATCHERY):
+                    if noqueue == 1:
+                        break
+                    if hatchery.noqueue:
+                        self.queens_built += 1
+                        print("built queen ", self.queens_built)
+                        noqueue += 1
+                        await self.do(hatchery.train(QUEEN))
+
+
+
         # checks if base build order requirements are done, allows for expansion of hatcheries at-will
-        if self.drones_built == 7 and self.moved_workers_to_gas1 is True and self.built_sp is True and self.base_build_order_complete is False:
+        # currently won't run until I finish built order
+        if self.queens_built == 3 and self.base_build_order_complete is False:
             self.base_build_order_complete = True
             print("DONE WITH BASE BUILD ORDER")
 
