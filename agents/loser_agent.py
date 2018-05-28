@@ -18,7 +18,7 @@ import sys
 from strategies import Strategies
 
 from sc2.position import Point2
-
+from sc2.data import race_townhalls
 
 class LoserAgent(sc2.BotAI):
     mainAgent = None
@@ -130,12 +130,12 @@ class LoserAgent(sc2.BotAI):
     For now, strategies will change ever 100 steps
     Harass strategies are not implemented yet
     '''
-    async def on_step(self, iteration, strategy_num=0):
+    async def on_step(self, iteration, strategy_num=9):
         # self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
         # self.log("Step: " + str(iteration))
 
         # TEMP: Until strategy is given by Q table
-        strategy_num = (int)(iteration / 75) % 8
+        # strategy_num = (int)(iteration / 75) % 8
 
         # Build lings, queen, overlords, drones, and meleeattack1
         await self.basic_build(iteration)
@@ -232,8 +232,6 @@ class LoserAgent(sc2.BotAI):
             # await self.mainAgent.do(self.mainAgent.units(HYDRALISKDEN).first(UPGRADETOLURKERDEN_LURKERDEN ))
             self.mainAgent.num_lurkerdens_built += 1
             await self.mainAgent.do(self.mainAgent.units(HYDRALISKDEN).first(MORPH_LURKERDEN))
-
-
 
     '''
     Calls the correct strategy function given the strategy enum value
@@ -483,7 +481,20 @@ class LoserAgent(sc2.BotAI):
     If harass units are attacked, move to the next base
     '''
     async def heavy_harass(self, iteration):
-        pass
+        # If there are known enemy expansions, harass those
+
+        enemy_bases = self.get_known_enemy_bases()
+
+        if enemy_bases.amount > 0:
+            for unit in self.units(ZERGLING):
+                unit.attack(enemy_bases[0].position)
+
+
+    def get_known_enemy_bases(self):
+        # Get all enemy structures, then filter to only take townhall types
+        enemy_structures = self.known_enemy_structures
+        townhall_ids = [item for sublist in race_townhalls.values() for item in sublist]
+        return enemy_structures.filter(lambda x: x.type_id in townhall_ids)
 
     '''
     TODO
@@ -516,7 +527,7 @@ class LoserAgent(sc2.BotAI):
     @property
     def army(self):
         return self.mainAgent.units - self.mainAgent.units(DRONE) - self.mainAgent.units(OVERLORD) - self.mainAgent.units(LARVA) - self.mainAgent.units(EGG) \
-               - self.mainAgent.units(QUEEN) - self.mainAgent.buildings - self.mainAgent.units(LURKERMPBURROWED)
+               - self.mainAgent.units(QUEEN) - self.mainAgent.buildings - self.mainAgent.units(LURKERMPBURROWED) - self.mainAgent.units(LURKERMPEGG)
 
     @property
     def overlords(self):
