@@ -426,7 +426,7 @@ class SafeRoachAgent(LoserAgent):
 
 
         # checks if base build order requirements are done, allows for expansion of hatcheries at-will
-        # currently won't run until I finish built order
+        # currently runs as a test
         if self.queens_built == 3 and self.base_build_order_complete is False:
             self.base_build_order_complete = True
             print("DONE WITH BASE BUILD ORDER")
