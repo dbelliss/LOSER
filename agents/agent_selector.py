@@ -76,7 +76,6 @@ class AgentSelector(LoserAgent):
         self.strategyNN = NeuralNetwork(self.nInputs + 2 * self.nAgents + self.nStrategies, self.nStrategies, 1, 1, 100)
 
     def fitness(self):
-        #self.idle_workers = self.mainAgent.workers.idle.amount
         return (self.lastFitness + .5) % 1
 
     def chooseRandomBuild(self):
@@ -87,8 +86,71 @@ class AgentSelector(LoserAgent):
         self.strategiesIndex = 0
         print(bcolors.OKGREEN + "###RandomStrategyIndex: {}".format(self.strategiesIndex) + bcolors.ENDC)
 
+    # Maybe move these fitness counts to loser_agent.py?
+    def ground_army_count(self):
+        return self.mainAgent.units(QUEEN).amount + self.mainAgent.units(ZERGLING).amount + self.mainAgent.units(BANELING).amount \
+        + self.mainAgent.units(ROACH).amount + self.mainAgent.units(RAVAGER).amount + self.mainAgent.units(HYDRALISK).amount \
+        + self.mainAgent.units(LURKER).amount + self.mainAgent.units(INFESTOR).amount + self.mainAgent.units(SWARMHOSTMP).amount \
+        + self.mainAgent.units(ULTRALISK).amount + self.mainAgent.units(LOCUSTMP).amount + self.mainAgent.units(BROODLING).amount \
+        + self.mainAgent.units(CHANGELING).amount
+
+    def flying_army_count(self):
+        return self.mainAgent.units(OVERSEER).amount + self.mainAgent.units(MUTALISK).amount + self.mainAgent.units(CORRUPTOR).amount \
+                + self.mainAgent.units(BROODLORD).amount + self.mainAgent.units(VIPER).amount
+
+    def worker_count(self):
+        return self.mainAgent.workers.amount
+
+    def mineral_count(self):
+        return self.mainAgent.minerals
+
+    def vespene_count(self):
+        return self.mainAgent.vespene
+
+    def idle_workers_count(self):
+        return self.mainAgent.workers.idle.amount
+
+    def vespene_worker_count(self):
+        workers = 0
+        for extractor in self.mainAgent.units(EXTRACTOR):
+            workers = workers + extractor.assigned_harvesters
+        return workers
+
+    # Should this be updated to go through mineral fields and count workers?
+    def mineral_worker_count(self):
+        return self.mainAgent.worker_count() - self.mainAgent.vespene_worker_count() - self.mainAgent.idle_workers_count()
+
+    def building_count(self):
+        return self.mainAgent.units(HATCHERY).amount + self.mainAgent.units(LAIR).amount + self.mainAgent.units(HIVE).amount + self.mainAgent.units(EXTRACTOR).amount + self.mainAgent.units(SPAWNINGPOOL).amount \
+               + self.mainAgent.units(ROACHWARREN).amount + self.mainAgent.units(CREEPTUMOR).amount + self.mainAgent.units(EVOLUTIONCHAMBER).amount + self.mainAgent.units(HYDRALISKDEN).amount \
+               + self.mainAgent.units(SPIRE).amount + self.mainAgent.units(GREATERSPIRE).amount + self.mainAgent.units(ULTRALISKCAVERN).amount + self.mainAgent.units(INFESTATIONPIT).amount \
+               + self.mainAgent.units(NYDUSNETWORK).amount + self.mainAgent.units(BANELINGNEST).amount + self.mainAgent.units(SPINECRAWLER).amount + self.mainAgent.units(SPORECRAWLER).amount \
+               + self.mainAgent.units(LURKERDEN).amount + self.mainAgent.units(LURKERDENMP).amount
+
+    def enemy_count(self):
+        return self.mainAgent.known_enemy_units.amount
+
+    def enemy_building_count(self):
+        return self.mainAgent.known_enemy_structures.amount
+
+    # May need to change the building normalization
+    def normalize_inputs(self):
+        minerals = (self.mineral_count()/1000)
+        vespene = (self.vespene_count()/1000)
+        total_workers = (self.worker_count()/200)
+        mineral_workers = (self.mineral_worker_count()/200)
+        vespene_workers = (self.vespene_worker_count()/200)
+        idle_workers = (self.idle_workers_count()/100)
+        ground_army = (self.ground_army_count()/200)
+        flying_army = (self.flying_army_count()/200)
+        buildings = (self.building_count()/200)
+        enemies = (self.enemy_count()/200)
+        enemy_buildings = (self.enemy_building_count()/200)
+        return [minerals, vespene, total_workers, mineral_workers, vespene_workers, idle_workers, ground_army, flying_army, buildings, enemies, enemy_buildings]
+
     async def on_step(self, iteration):
-        self.log("Step: %s Idle Workers: %s Overlord: %s Workers: %s" % (str(iteration), str(self.mainAgent.workers.idle.amount), str(self.mainAgent.units(OVERLORD).amount), str(self.mainAgent.workers.amount)))
+        # self.log("Step: %s Idle Workers: %s Overlord: %s Workers: %s " % (str(iteration), str(self.mainAgent.workers.idle.amount), str(self.mainAgent.units(OVERLORD).amount), str(self.mainAgent.workers.amount)))
+        self.log("Normalize inputs: %s" % (str(self.mainAgent.normalize_inputs())))
 
         # Run fitness on a certain number of steps
         if (iteration % self.stepsPerAgent == 0):
@@ -128,7 +190,7 @@ class AgentSelector(LoserAgent):
         curAgent[self.curAgentIndex] = correctChoice
         curStrategy[self.strategiesIndex] = correctChoice
 
-        #appends all the input lists together, also puts them into lists of lists for the NN 
+        #appends all the input lists together, also puts them into lists of lists for the NN
         # ie [1, 2, 3] + [4, 5] => [[1, 2, 3, 4 ,5]]
         agentInputList = [self.prevInputs + prevAgent + prevStrategy]
         agentOutputList = [curAgent]
@@ -153,11 +215,11 @@ class AgentSelector(LoserAgent):
         curAgent[self.curAgentIndex] = 1
         curStrategy[self.strategiesIndex] = 1
 
-        #appends all the input lists together, also puts them into lists of lists for the NN 
+        #appends all the input lists together, also puts them into lists of lists for the NN
         # ie [1, 2, 3] + [4, 5] => [[1, 2, 3, 4 ,5]]
         agentInputList = [curInputs + curAgent + curStrategy]
         self.log("Predicting agentNN with inputs: {0}".format(str(agentInputList)))
-        
+
         nextAgent = self.agentNN.predict(agentInputList)[0].tolist() #extract first row from returned numpy array
         nextAgentIndex = nextAgent.index(max(nextAgent))
         nextAgent = [nextAgent[i] if i == nextAgentIndex else 0 for i in range(len(nextAgent))]
