@@ -124,13 +124,16 @@ class LoserAgent(sc2.BotAI):
             self.did_strategy_change = False
             LoserAgent.mainAgent = self
 
+            # Way point for units to move to
+            self.waypoint = None
+
     '''
     Base on_step function
     Uses basic_build and performs actions based on the current strategy
     For now, strategies will change ever 100 steps
     Harass strategies are not implemented yet
     '''
-    async def on_step(self, iteration, strategy_num=9):
+    async def on_step(self, iteration, strategy_num=0):
         # self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
         # self.log("Step: " + str(iteration))
 
@@ -168,7 +171,7 @@ class LoserAgent(sc2.BotAI):
                 await self.mainAgent.do(self.mainAgent.random_larva.train(HYDRALISK))
 
             # Build lings
-            if self.mainAgent.units(ZERGLING).amount < 100 and self.mainAgent.can_afford(ZERGLING) and self.mainAgent.num_larva > 0 and \
+            if self.mainAgent.units(ZERGLING).amount < 5 and self.mainAgent.can_afford(ZERGLING) and self.mainAgent.num_larva > 0 and \
                     self.mainAgent.supply_used < self.mainAgent.supply_cap - 1 and self.mainAgent.units(SPAWNINGPOOL).ready.exists:
                 await self.mainAgent.do(self.mainAgent.random_larva.train(ZERGLING))
         # Build Spawning pool
@@ -329,6 +332,17 @@ class LoserAgent(sc2.BotAI):
         # Strategy just changed, need to take a strike_force
         if self.mainAgent.strike_force is None:
             self.mainAgent.strike_force = army.take(desired_strike_force_size)
+            pos = lambda: None  # https://stackoverflow.com/questions/19476816/creating-an-empty-object-in-python
+            
+            # Meet up with all units in the middle of the map
+            # Map size for quick access
+            map_width = self.mainAgent.game_info.map_size[0]
+            map_height = self.mainAgent.game_info.map_size[1]
+            pos.x = map_width / 2
+            pos.y = map_height / 2
+
+            position_to_search = Point2.from_proto(pos)
+            self.mainAgent.waypoint = self.waypoint = position_to_search
 
         # If strike force should include more members (If a unit was built)
         # Do not add more units if the entire army is already in strike force
@@ -338,13 +352,31 @@ class LoserAgent(sc2.BotAI):
 
 
         # By now we must have at least 1 offensive unit
-        target = self.mainAgent.select_target()
         unselected_army = army - self.mainAgent.strike_force
 
-        # All strike force members attack
-        for unit in self.mainAgent.strike_force:
-            await self.mainAgent.do(unit.attack(target))
+        num_units_at_waypoint = 0
+        # All strike force members attack to the waypoint
+        for unit_ref in self.mainAgent.strike_force:
+            # Need to reacquire unit from self.units to see that a command has been queued
+            id = unit_ref.tag
+            unit = self.mainAgent.units.find_by_tag(id)
 
+            if unit is None:
+                # Unit died
+                self.mainAgent.strike_force.remove(unit_ref)
+                continue
+                
+            distance_from_waypoint = unit.position.to2.distance_to(self.waypoint)
+            if distance_from_waypoint < 10:
+                num_units_at_waypoint += 1
+            await self.mainAgent.do(unit.attack(self.waypoint))
+
+        percentage_units_at_waypoint = num_units_at_waypoint / len(self.mainAgent.strike_force)
+        # If all units are close to the waypoint, pick a closer one
+        if percentage_units_at_waypoint > .75:
+            self.log("ADVANCING")
+            target = self.mainAgent.select_target()
+            self.mainAgent.waypoint = self.waypoint.towards(target, 20)
         # # Remaining offensive units just wait at their position
         # for unit in unselected_army:
         #     await self.do(unit.hold_position())
