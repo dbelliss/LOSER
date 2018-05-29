@@ -1,4 +1,7 @@
 # https://chatbotslife.com/building-a-basic-pysc2-agent-b109cde1477c
+import asyncio
+import random
+
 import sc2
 from sc2 import Race, Difficulty
 from sc2.constants import *
@@ -7,100 +10,583 @@ from sc2.player import Bot, Computer
 from pprint import pprint
 from time import gmtime, strftime, localtime
 import os
+
 # For debugging purposes only
 import sys
 
-class LoserAgent(sc2.BotAI):
-    base_top_left = None
-    overlord_built = False
-    larva_selected = False
-    drone_selected = False
-    spawning_pool_built = False
-    spawning_pool_selected = False
-    spawning_pool_rallied = False
-    army_selected = False
-    army_rallied = False
+# Get strategy enums
+from strategies import Strategies
 
-    def __init__(self, is_logging = False):
+from sc2.position import Point2
+
+
+class LoserAgent(sc2.BotAI):
+    mainAgent = None
+    def __init__(self, is_logging = False, is_printing_to_console = False, isMainAgent = False, fileName = ""):
         super().__init__()
 
-        # For debugging
-        self.is_logging = is_logging
-        if self.is_logging:
+        if isMainAgent:
+            # For debugging
+            self.is_logging = is_logging  # Setting this to true to write information to log files in the agents/logs directory
+            self.is_printing_to_console = is_printing_to_console  # Setting this to true causes all logs to be printed to the console
 
             # Make logs directory if it doesn't exist
             if not os.path.exists("./logs"):
                 os.mkdir("./logs")
-            self.log_file_name = "./logs/" + strftime("%Y-%m-%d %H:%M:%S", localtime()) + ".log"
+            self.log_file_name = "./logs/" + fileName + strftime("%Y-%m-%d %H%M%S", localtime()) + ".log"
             self.log_file = open(self.log_file_name, "w+")  # Create log file based on the time
 
+            # Constants
+            self.researched = 2  # If an upgrade has been research
+            self.is_researching = 1  # If an upgrade is being researched
+            self.not_researched = 0  # If an upgrade is not being researched and has not been researched
 
-        # Constants
-        self.researched = 2  # If an upgrade has been research
-        self.is_researching = 1  # If an upgrade is being researched
-        self.not_researched = 0  # If an upgrade is not being researched and has not been researched
+            # non-standard upgrade status
+            self.can_burrow = 0
+            self.zergling_speed = 0
+            self.zergling_attack_boost = 0
+            self.baneling_speed = 0
+            self.roach_speed = 0
+            self.roach_tunnel = 0
+            self.overlord_speed = 0
+            self.hydralisk_range = 0
+            self.infestor_parasite = 0
+            self.infestor_energy = 0
+            self.ultralisk_defense = 0
 
-        # non-standard upgrades purchased
-        self.can_burrow = None # true if Burrow has been purchased
-        self.zergling_speed = None # True if Metabolic Boost has been purchased
-        self.zergling_attack_boost = None  # True if Adrenal glands has been purchased
-        self.baneling_speed = None # True if Centrifugal Hooks has been purchased
-        self.roach_speed = None  # True if Glial Reconstruction has been purchased
-        self.roach_tunnel = None  # True if Tunneling Claws reconstruction has been purchased
-        self.overlord_speed = None  # True if Pneumatized Carapace has been purchsed
-        self.hydralisk_range = None  # True if Grooved Spines has been purchased
-        self.infestor_parasite = None  # True if Neural parasite has been purchased
-        self.infestor_energy = None  # True if Pathogen Glands has been purchased
-        self.ultralisk_defense = None  # True if Chitinous Plating has been purchased
+            # standard upgrades
+            # Ground melee
+            self.melee1 = 0
+            self.melee2 = 0
+            self.melee3 = 0
 
-        # standard upgrades
-        # TODO
+            # Ground ranged
+            self.ranged1 = 0
+            self.ranged2 = 0
+            self.ranged3 = 0
 
-    async def on_step(self, iteration):
-        self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
+            # Ground defense
+            self.carapace1 = 0
+            self.carapace2 = 0
+            self.carapace3 = 0
+
+            # Flyer attack
+            self.flyer_attack1 = 0
+            self.flyer_attack2 = 0
+            self.flyer_attack3 = 0
+
+            # Flyer defense
+            self.flyer_defense1 = 0
+            self.flyer_defense2 = 0
+            self.flyer_defense3 = 0
+
+            # units built
+            self.num_zerglings_built = 0
+            self.num_drones_built = 0
+            self.num_queens_built = 0
+            self.num_roaches_built = 0
+            self.num_hydralisks_built = 0
+            self.num_banelines_built = 0
+            self.num_lurkers_built = 0
+            self.num_ravagers_built = 0
+            self.num_num_mutalisks_built = 0
+            self.num_corrupters_built = 0
+            self.num_brood_lords_built = 0
+            self.num_swarm_hosts_built = 0
+            self.num_vipers_built = 0
+            self.num_ultralisks_built = 0
+
+            # Static defenses built
+            self.num_spinecrawlers_built = 0
+            self.num_sporecrawlers_built = 0
+
+            # Structure built
+            self.num_extractors_built = 0
+            self.num_hatcheries_built = 0
+            self.num_spawningpools_built = 0
+            self.num_roachwarrens_built = 0
+            self.num_hyraliskdens_built = 0
+            self.num_lairs_built = 0
+            self.num_infestation_pits_built = 0
+            self.num_lurkerdens_built = 0
+            self.num_hives_built = 0
+            self.num_ultralisk_caverns_built = 0
+            self.num_spires_built = 0
+            self.num_greater_spires_built = 0
+
+            # Units actively being used for things, gets set to null on strategy change
+            self.strike_force = None
+
+            # Previous strategy so you now when the strategy changes
+            self.prev_strategy = None
+
+            # True if strategy just changed in this iteration
+            self.did_strategy_change = False
+            LoserAgent.mainAgent = self
+
+    '''
+    Base on_step function
+    Uses basic_build and performs actions based on the current strategy
+    For now, strategies will change ever 100 steps
+    Harass strategies are not implemented yet
+    '''
+    async def on_step(self, iteration, strategy_num=0):
+        # self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
+        # self.log("Step: " + str(iteration))
+
+        # TEMP: Until strategy is given by Q table
+        strategy_num = (int)(iteration / 75) % 8
+
+        # Build lings, queen, overlords, drones, and meleeattack1
+        await self.basic_build(iteration)
+
+        # Perform actions based on given strategy
+        if strategy_num == -1:
+            self.mainAgent.log("No given strategy")
+        else:
+            await self.perform_strategy(iteration, strategy_num)
+
+    '''
+    Builds a ton of lings
+    Build drones and start gathering vespene
+    Build a queen
+    Build overlords as needed
+    Builds a few hydralisks
+    '''
+    async def basic_build(self, iteration):
+        hatchery = self.mainAgent.bases.ready.random
+        # Build overlords if close to reaching cap
+        if self.mainAgent.supply_used > self.mainAgent.supply_cap - 4 and self.mainAgent.num_larva > 0 and self.mainAgent.can_afford(OVERLORD):
+            await self.mainAgent.do(self.mainAgent.random_larva.train(OVERLORD))
+        else:
+            # Build drones
+            if self.mainAgent.units(DRONE).amount < 20 and self.mainAgent.can_afford(DRONE) and self.mainAgent.units(LARVA).amount > 0 and self.mainAgent.supply_used < self.mainAgent.supply_cap:
+                await self.mainAgent.do(self.mainAgent.random_larva.train(DRONE))
+
+            if self.mainAgent.units(HYDRALISKDEN).ready.exists and self.mainAgent.units(HYDRALISK).amount < 20 and self.mainAgent.supply_used < self.mainAgent.supply_cap - 3 \
+                    and self.mainAgent.can_afford(HYDRALISK) and self.mainAgent.num_larva > 0:
+                await self.mainAgent.do(self.mainAgent.random_larva.train(HYDRALISK))
+
+            # Build lings
+            if self.mainAgent.units(ZERGLING).amount < 100 and self.mainAgent.can_afford(ZERGLING) and self.mainAgent.num_larva > 0 and \
+                    self.mainAgent.supply_used < self.mainAgent.supply_cap - 1 and self.mainAgent.units(SPAWNINGPOOL).ready.exists:
+                await self.mainAgent.do(self.mainAgent.random_larva.train(ZERGLING))
+        # Build Spawning pool
+        if not self.mainAgent.units(SPAWNINGPOOL).exists and self.mainAgent.can_afford(SPAWNINGPOOL):
+            p = hatchery.position.towards(self.mainAgent.game_info.map_center, 3)
+            await self.mainAgent.build(SPAWNINGPOOL, near=p)
+
+        if self.mainAgent.num_extractors_built < 1 and self.mainAgent.can_afford(EXTRACTOR):
+            self.mainAgent.num_extractors_built += 1
+            drone = self.mainAgent.workers.random
+            target = self.mainAgent.state.vespene_geyser.closest_to(drone.position)
+            await self.mainAgent.do(drone.build(EXTRACTOR, target))
+
+        # If Extractor does not have 3 drones, give it more drones
+        for extractor in self.mainAgent.units(EXTRACTOR):
+            if extractor.assigned_harvesters < extractor.ideal_harvesters and self.mainAgent.workers.amount > 0:
+                await self.mainAgent.do(self.mainAgent.workers.random.gather(extractor))
+
+        # Build Spawning pool
+        if not self.mainAgent.units(EVOLUTIONCHAMBER).exists and self.mainAgent.can_afford(SPAWNINGPOOL):
+            p = hatchery.position.towards(self.mainAgent.game_info.map_center, 3)
+            await self.mainAgent.build(EVOLUTIONCHAMBER, near=p)
+        elif self.mainAgent.can_afford(RESEARCH_ZERGMELEEWEAPONSLEVEL1) and self.mainAgent.melee1 == 0 and self.mainAgent.units(EVOLUTIONCHAMBER).ready.exists:
+            # Get melee1 upgrade
+            self.mainAgent.melee1 = 1
+            await self.mainAgent.do(self.mainAgent.units(EVOLUTIONCHAMBER).first(RESEARCH_ZERGMELEEWEAPONSLEVEL1))
+
+        # Build a queen if you haven't
+        if self.mainAgent.num_queens_built < 1 and self.mainAgent.units(SPAWNINGPOOL).ready.exists and self.mainAgent.can_afford(QUEEN) and \
+                self.mainAgent.supply_used < self.mainAgent.supply_cap - 1:
+            base = self.mainAgent.bases.random
+            self.mainAgent.num_queens_built += 1
+            await self.mainAgent.do(base.train(QUEEN))
+
+        # Inject larva when possible
+        elif self.mainAgent.units(QUEEN).amount > 0:
+            queen = self.mainAgent.units(QUEEN).first
+            abilities = await self.mainAgent.get_available_abilities(queen)
+            if AbilityId.EFFECT_INJECTLARVA in abilities:
+                await self.mainAgent.do(queen(EFFECT_INJECTLARVA, hatchery))
+
+        # Upgrade to lair when possible
+        if self.mainAgent.num_lairs_built == 0 and self.mainAgent.units(HATCHERY).amount > 0 and self.mainAgent.can_afford(AbilityId.UPGRADETOLAIR_LAIR) \
+                and self.mainAgent.can_afford(UnitTypeId.LAIR) and self.mainAgent.units(SPAWNINGPOOL).ready.exists and self.mainAgent.units(QUEEN).amount > 0:
+            hatchery = self.mainAgent.units(HATCHERY).first
+            self.mainAgent.num_lairs_built += 1
+            err = await self.mainAgent.do(hatchery(UPGRADETOLAIR_LAIR))
+            if err:
+                self.mainAgent.num_lairs_built -= 1
+
+        # Build hydralisk den when possible
+        if not self.mainAgent.units(HYDRALISKDEN).exists and self.mainAgent.units(LAIR).amount > 0 and self.mainAgent.can_afford(HYDRALISKDEN) \
+                and self.mainAgent.num_hydralisks_built == 0:
+            p = hatchery.position.towards(self.mainAgent.game_info.map_center, 3)
+            self.mainAgent.num_hydralisks_built += 1
+            await self.mainAgent.build(HYDRALISKDEN, near=p)
+
+        # Build lurker den when possible
+        if self.mainAgent.num_lurkerdens_built == 0 and self.mainAgent.units(HYDRALISKDEN).ready.amount > 0 and \
+                self.mainAgent.can_afford(UPGRADETOLURKERDEN_LURKERDEN):
+            # await self.mainAgent.do(self.mainAgent.units(HYDRALISKDEN).first(UPGRADETOLURKERDEN_LURKERDEN ))
+            self.mainAgent.num_lurkerdens_built += 1
+            await self.mainAgent.do(self.mainAgent.units(HYDRALISKDEN).first(MORPH_LURKERDEN))
+
+
+
+    '''
+    Calls the correct strategy function given the strategy enum value
+    Strategy functions can be override in base classes
+    '''
+    async def perform_strategy(self, iteration, strategy_num):
+        self.mainAgent.clean_strike_force()  # Clear dead units from strike force
+
+        # Make sure given strategy num is valid
+        if Strategies.has_value(strategy_num):
+            # Valid strategy num, convert int into enum value
+            strategy = Strategies(strategy_num)
+
+            # Mark strategy as changed or not
+            if strategy != self.mainAgent.prev_strategy:
+                self.mainAgent.log("New strategy is " + str(strategy))
+                self.mainAgent.did_strategy_change = True
+                self.mainAgent.strike_force = None
+            else:
+                self.mainAgent.did_strategy_change = False
+
+            self.mainAgent.prev_strategy = strategy  # Prepare for next iteration
+        else:
+            self.log_error(f"Unknown strategy number {strategy_num}")
+            return
+
+        # Call the proper strategy function
+
+        # Attack
+        if strategy == Strategies.HEAVY_ATTACK:
+            await self.heavy_attack(iteration)
+        elif strategy == Strategies.MEDIUM_ATTACK:
+            await self.medium_attack(iteration)
+        elif strategy == Strategies.LIGHT_ATTACK:
+            await self.light_attack(iteration)
+
+        # Scouting
+        elif strategy == Strategies.HEAVY_SCOUTING:
+            await self.heavy_scouting(iteration)
+        elif strategy == Strategies.MEDIUM_SCOUTING:
+            await self.medium_scouting(iteration)
+        elif strategy == Strategies.LIGHT_SCOUTING:
+            await self.light_scouting(iteration)
+
+        # Defense
+        elif strategy == Strategies.HEAVY_DEFENSE:
+            await self.heavy_defense(iteration)
+        elif strategy == Strategies.MEDIUM_DEFENSE:
+            await self.medium_defense(iteration)
+        elif strategy == Strategies.LIGHT_DEFENSE:
+            await self.light_defense(iteration)
+
+        # Harass
+        elif strategy == Strategies.HEAVY_HARASS:
+            await self.heavy_harass(iteration)
+        elif strategy == Strategies.MEDIUM_HARASS:
+            await self.medium_harass(iteration)
+        elif strategy == Strategies.LIGHT_HARASS:
+            await self.light_harass(iteration)
+
+        # Unknown
+        else:
+            self.log("Unknown strategy was given: " + str(strategy))
+
+    '''
+    Send all combat units (including the queen) to a known enemy position
+    Do NOT recall ever
+    '''
+    async def heavy_attack(self, iteration):
+        await self.attack_with_percentage_of_army(1)
+
+    '''
+    Send all combat units (including the queen) to a known enemy position
+    Recall after a certain amount of units die 
+    Must keep track of units being used because order of units in self.units constantly changes
+    '''
+    async def medium_attack(self, iteration):
+        await self.attack_with_percentage_of_army(.6)
+    '''
+    Attack a known enemy position, but if you get attacked, retreat back to base
+    '''
+
+    async def light_attack(self, iteration):
+        await self.attack_with_percentage_of_army(.3)
+
+
+    async def attack_with_percentage_of_army(self, percentage):
+        army = self.mainAgent.army
+
+        if len(army) == 0:
+            # No army to use, don't bother trying to attack
+            return
+
+        desired_strike_force_size = int(percentage * army.amount)
+        # Strategy just changed, need to take a strike_force
+        if self.mainAgent.strike_force is None:
+            self.mainAgent.strike_force = army.take(desired_strike_force_size)
+
+        # If strike force should include more members (If a unit was built)
+        # Do not add more units if the entire army is already in strike force
+        if len(self.mainAgent.strike_force) < desired_strike_force_size and len(army) > len(self.mainAgent.strike_force):
+
+            self.mainAgent.strike_force += (army - self.mainAgent.strike_force).take(desired_strike_force_size - len(self.mainAgent.strike_force))
+
+
+        # By now we must have at least 1 offensive unit
+        target = self.mainAgent.select_target()
+        unselected_army = army - self.mainAgent.strike_force
+
+        # All strike force members attack
+        for unit in self.mainAgent.strike_force:
+            await self.mainAgent.do(unit.attack(target))
+
+        # # Remaining offensive units just wait at their position
+        # for unit in unselected_army:
+        #     await self.do(unit.hold_position())
+
+
+    '''
+    Send all military units out to different areas
+    Die for knowledge
+    '''
+    async def heavy_scouting(self, iteration):
+        await self.scout_with_percentage_of_army(1, True, False)
+
+    '''
+    Send a good amount of military units out
+    '''
+    async def medium_scouting(self, iteration):
+        await self.scout_with_percentage_of_army(.5, True, False)
+
+    '''
+    Send a couple of things out for scouting and pull back if damage is taken
+    '''
+    async def light_scouting(self, iteration):
+        await self.scout_with_percentage_of_army(.5, True, True)
+
+    async def scout_with_percentage_of_army(self, percentage, use_overlords, pull_back_if_damaged):
+        map_width = self.mainAgent.game_info.map_size[0]
+        map_height = self.mainAgent.game_info.map_size[1]
+
+        army = self.mainAgent.army
+
+        if use_overlords:
+            army += self.mainAgent.units(OVERLORD)
+
+        desired_strike_force_size = int(percentage * army.amount)
+        if self.mainAgent.strike_force is None:
+            self.mainAgent.strike_force = army.take(desired_strike_force_size)
+
+        # If strike force should include more members (If a unit was built)
+        # Do not add more units if the entire army is already in strike force
+        if len(self.mainAgent.strike_force) < desired_strike_force_size and len(army) > len(self.mainAgent.strike_force):
+            self.mainAgent.strike_force += (army - self.mainAgent.strike_force).take(desired_strike_force_size - len(self.mainAgent.strike_force))
+
+        for unit_ref in self.mainAgent.strike_force:
+            # Need to reacquire unit from self.units to see that a command has been queued
+            id = unit_ref.tag
+            unit = self.mainAgent.units.find_by_tag(id)
+
+            if unit is None:
+                # Unit died
+                self.mainAgent.strike_force.remove(unit_ref)
+                continue
+            if pull_back_if_damaged and unit.health < unit.health_max:
+                # If pull_back is true and unti is damaged, move to random hatchery
+                if (len(self.mainAgent.bases) > 0):
+                    await self.mainAgent.do(unit.move(self.mainAgent.bases[random.randrange(0, len(self.mainAgent.bases))].position))
+            elif unit.noqueue:
+                # Go to a new random position
+                pos = lambda: None  # https://stackoverflow.com/questions/19476816/creating-an-empty-object-in-python
+                pos.x = random.randrange(0, map_width)
+                pos.y = random.randrange(0, map_height)
+                position_to_search = Point2.from_proto(pos)
+                await self.mainAgent.do(unit.move(position_to_search))
+
+    '''
+    Complete recall back to main base
+    Build lots of static defenses
+    Build lots of lurkers 
+    '''
+    async def heavy_defense(self, iteration):
+        # Build 5 spinecrawlers and sporecrawlers, and 10 lurkers
+        await self.prepare_defenses(4, 4, 10)
+
+    '''
+    Recall and distribute between main base and explansions
+    Build some defensive structures and units
+    '''
+    async def medium_defense(self, iteration):
+        # Build 3 spinecrawlers and sporecrawlers, and 5 lurkers
+        await self.prepare_defenses(3, 3, 5)
+
+    '''
+    Distribute forces between main base and expansions
+    Build a few defensive structures and units
+    '''
+    async def light_defense(self, iteration):
+        # Build 1 spinecrawlers and sporecrawlers, and 3 lurkers
+        await self.prepare_defenses(1, 1, 3)
+
+
+    async def prepare_defenses(self, num_spine_crawlers_to_build, num_sporecrawlers_to_build, num_lurkers_to_build):
+        hatchery = self.mainAgent.bases.ready.random
+
+        # TODO: have some units go to expansions
+        # Return all units to base
+        for unit in self.mainAgent.army + self.mainAgent.overlords:
+            if unit.distance_to(hatchery.position) > 20:
+                await self.mainAgent.do(unit.move(hatchery.position))
+
+
+        # Build spine crawlers
+        if self.mainAgent.units(SPAWNINGPOOL).ready.exists and self.mainAgent.num_spinecrawlers_built < num_spine_crawlers_to_build \
+                and self.mainAgent.can_afford(SPINECRAWLER):
+            self.mainAgent.num_spinecrawlers_built += 1
+            p = hatchery.position.towards(self.mainAgent.game_info.map_center, 3)
+            await self.mainAgent.build(SPINECRAWLER, near=p)
+
+        # Build spore crawlers
+        if self.mainAgent.units(EVOLUTIONCHAMBER).ready.exists and self.mainAgent.num_sporecrawlers_built < num_sporecrawlers_to_build \
+                and self.mainAgent.can_afford(SPORECRAWLER):
+            self.mainAgent.num_sporecrawlers_built += 1
+            p = hatchery.position.towards(self.mainAgent.game_info.map_center, 3)
+            await self.mainAgent.build(SPORECRAWLER, near=p)
+
+
+        # Build lurkers
+        if self.mainAgent.units(LURKERDENMP).ready.exists and self.mainAgent.num_lurkers_built < num_lurkers_to_build \
+                and self.mainAgent.can_afford(MORPH_LURKER) and self.mainAgent.num_larva > 0 and self.mainAgent.units(HYDRALISK).amount > 0:
+            self.mainAgent.num_lurkers_built += 1
+            hydralisk = self.mainAgent.units(HYDRALISK).random
+            err = await self.mainAgent.do(hydralisk(MORPH_LURKER))
+            if err:
+                self.mainAgent.num_lurkers_built -= 1
+
+        # Burrow all lurkers so they can attack
+        for lurker in self.mainAgent.units(LURKERMP):
+            abilities = await self.mainAgent.get_available_abilities(lurker)
+            if AbilityId.BURROWDOWN_LURKER in abilities:
+                await self.mainAgent.do(lurker(BURROWDOWN_LURKER))
+
+
+    '''
+    Build swarms hosts and harass with them
+    Build mutalisks and harass with them
+    If harass units are attacked, move to the next base
+    '''
+    async def heavy_harass(self, iteration):
+        pass
+
+    '''
+    TODO
+    '''
+    async def medium_harass(self, iteration):
+        pass
+
+    '''
+    If attacked pull back for a set time
+    Only use harass units if you have them
+    '''
+    async def light_harass(self, iteration):
+        pass
+
+    '''
+    Removes dead units from strike force
+    '''
+    def clean_strike_force(self):
+        if self.mainAgent.strike_force is None:
+            # No defined strike force yet
+            return
+        for unit in self.mainAgent.strike_force:
+            if self.mainAgent.units.find_by_tag(unit.tag) is None:
+                self.mainAgent.strike_force.remove(unit)
+
+    '''
+    Utilities
+    '''
 
     @property
-    def game_time(self):
-        return self.state.game_loop * 0.725 * (1 / 16)
+    def army(self):
+        return self.mainAgent.units - self.mainAgent.units(DRONE) - self.mainAgent.units(OVERLORD) - self.mainAgent.units(LARVA) - self.mainAgent.units(EGG) \
+               - self.mainAgent.units(QUEEN) - self.mainAgent.buildings - self.mainAgent.units(LURKERMPBURROWED)
 
     @property
-    def get_minerals(self):
-        """Get the current amount of minerals"""
-        return self.minerals
+    def overlords(self):
+        return self.mainAgent.units(OVERLORD)
 
     @property
-    def get_vespene(self):
-        """Get the current amount of vespene"""
-        return self.vespene
+    def buildings(self):
+        return self.mainAgent.units(HATCHERY) + self.mainAgent.units(LAIR) + self.mainAgent.units(HIVE) + self.mainAgent.units(EXTRACTOR) + self.mainAgent.units(SPAWNINGPOOL) \
+               + self.mainAgent.units(ROACHWARREN) + self.mainAgent.units(CREEPTUMOR) + self.mainAgent.units(EVOLUTIONCHAMBER) + self.mainAgent.units(HYDRALISKDEN) \
+               + self.mainAgent.units(SPIRE) + self.mainAgent.units(GREATERSPIRE) + self.mainAgent.units(ULTRALISKCAVERN) + self.mainAgent.units(INFESTATIONPIT) \
+               + self.mainAgent.units(NYDUSNETWORK) + self.mainAgent.units(BANELINGNEST) + self.mainAgent.units(SPINECRAWLER) + self.mainAgent.units(SPORECRAWLER) \
+                + self.mainAgent.units(LURKERDEN) + self.mainAgent.units(LURKERDENMP)
 
     @property
-    def get_remaining_supply(self):
-        """Get remaining supply"""
-        return self.supply_left
+    def bases(self):
+        return self.mainAgent.units(HATCHERY) | self.mainAgent.units(LAIR) | self.mainAgent.units(HIVE)
+
+    def get_random_worker(self):
+        return self.mainAgent.units(DRONE).random
+
+    '''
+    From Dentosal's proxyrax build
+    Targets a random known enemy unit
+    If no known units, targets a random known building
+    If no known buildings and units, go towards te first possible enemy start position
+    '''
+    def select_target(self):
+        target = self.mainAgent.known_enemy_structures
+        if target.exists:
+            return target.random.position
+
+        target = self.mainAgent.known_enemy_units
+        if target.exists:
+            return target.random.position
+
+
+        # TODO: Explore other starting positions
+        return self.mainAgent.enemy_start_locations[0].position
 
     @property
-    def get_workers(self):
-        """Get the current amount of drones"""
-        return self.workers.amount
-
-    @property
-    def get_idle_workers(self):
-        return self.workers.idle.amount
-
-    @property
-    def get_larva_num(self):
+    def num_larva(self):
         """Get the current amount of larva"""
-        return self.units(LARVA).amount
+        return self.mainAgent.units(LARVA).amount
 
+    @property
+    def random_larva(self):
+        """Get a random larva"""
+        return self.mainAgent.units(LARVA).random
+
+    '''
+    Prints to console if self.is_printing_to_console
+    Writes to log file if self.is_logging
+    '''
     def log(self, data):
         """Log the data to the logfile if this agent is set to log information and logfile is below 1 megabyte"""
-        if self.is_logging and os.path.getsize(self.log_file_name) < 1000000:
-            self.log_file.write(data + "\n")
+        if self.mainAgent.is_logging and os.path.getsize(self.mainAgent.log_file_name) < 1000000:
+            self.mainAgent.log_file.write(f"{data}\n")
+        if self.mainAgent.is_printing_to_console:
+            print(data)
+
+    def log_error(self, data):
+        data = f"ERROR: {data}"
+        self.mainAgent.log_file.write(f"{data}\n")
+        print(data)
+
 
 def main():
     # Start game with LoserAgent as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
-        Bot(Race.Zerg, LoserAgent(True)),
+        Bot(Race.Zerg, LoserAgent(True, True, True)),
         Computer(Race.Protoss, Difficulty.Medium)
     ], realtime=False)
 
