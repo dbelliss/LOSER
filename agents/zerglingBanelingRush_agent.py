@@ -8,6 +8,7 @@ class ZerglingBanelingRushAgent(LoserAgent):
         self.overlord_counter = 0
         self.zergling_counter = 0
         self.baneling_counter = 0
+        self.attack_distance = 30
         self.countdown = 0
         self.extractor_started = False
         self.hatchery_started = False
@@ -67,16 +68,21 @@ class ZerglingBanelingRushAgent(LoserAgent):
                 await self.do(larvae.random.train(OVERLORD))
                 self.overlord_counter += 1
                 print ("Overlord " + str(self.overlord_counter))
+            elif self.supply_left <= 2 and larvae.exists and self.can_afford(OVERLORD):
+                await self.do(larvae.random.train(OVERLORD))
+                self.overlord_counter += 1
+                print("Overlord " + str(self.overlord_counter))
+                print("Game Time: " + str(self.game_time))
 
-        if self.game_time > 50 and self.moved_worker_to_expand == False:
+        if self.game_time > 50 and not self.moved_worker_to_expand:
             pos = await self.get_next_expansion()
             err = await self.do(self.workers.closest_to(pos).move(pos))
             if not err:
                 self.moved_worker_to_expand = True
-                print("Worked moved to expansion point")
+                print("Worker moved to expansion point")
                 print("Game Time: " + str(self.game_time))
 
-        if self.game_time > 60 and self.moved_worker_to_expand == True and not self.hatchery_started and self.can_afford(HATCHERY):
+        if self.game_time > 60 and self.moved_worker_to_expand and not self.hatchery_started and self.can_afford(HATCHERY):
             pos = await self.get_next_expansion()
             drone = self.workers.closest_to(pos)
             err = await self.build(HATCHERY, near=pos, max_distance=20, unit=drone)
@@ -118,9 +124,10 @@ class ZerglingBanelingRushAgent(LoserAgent):
         for queen in self.units(QUEEN).idle:
             abilities = await self.get_available_abilities(queen)
             if AbilityId.EFFECT_INJECTLARVA in abilities:
-                await self.do(queen(EFFECT_INJECTLARVA, hatchery))
-                print("Larva Injected")
-                print("Game Time: " + str(self.game_time))
+                err = await self.do(queen(EFFECT_INJECTLARVA, hatchery))
+                if not err:
+                    print("Larva Injected")
+                    print("Game Time: " + str(self.game_time))
 
         if self.can_afford(RESEARCH_ZERGLINGMETABOLICBOOST) and not self.mboost_started:
             sp = self.units(SPAWNINGPOOL).ready
@@ -137,14 +144,19 @@ class ZerglingBanelingRushAgent(LoserAgent):
                     self.zergling_counter += 1
 
         if self.zergling_counter >= 5:
-            self.attacking = True
+            if not self.attacking:
+                self.attacking = True
+                self.countdown = self.game_time
 
-            for unit in self.units(ZERGLING) | self.units(QUEEN) | self.units(BANELING):
-                await self.do(unit.attack(target.to2.towards(self.game_info.map_center, 30)))
+            for unit in self.units(ZERGLING) | self.units(BANELING):
+                await self.do(unit.attack(target.to2.towards(self.game_info.map_center, self.attack_distance)))
 
-            if self.baneling_counter != 0:
-                for worker in self.workers:
-                    await self.do(worker.attack(target.to2.towards(self.game_info.map_center, 30)))
+            #if self.baneling_counter != 0:
+            #    for worker in self.workers:
+            #        await self.do(worker.attack(target.to2.towards(self.game_info.map_center, 30)))
+
+        if self.attacking:
+            self.attack_distance = 80 - (self.game_time - self.countdown)
 
         if not self.baneling_nest_started:
             if self.can_afford(BANELINGNEST) and self.units(SPAWNINGPOOL).ready.exists:
@@ -173,7 +185,7 @@ def main():
     # Start game with LoserAgent as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, ZerglingBanelingRushAgent(True)),
-        Computer(Race.Terran, Difficulty.Easy)
+        Computer(Race.Protoss, Difficulty.Easy)
     ], realtime=False)
 
 if __name__ == '__main__':
