@@ -35,6 +35,7 @@ class bcolors:
 
 
 class AgentSelector(LoserAgent):
+    #TODO Implement previous known enemy list so that we dont lose info over time
     def __init__(self, is_logging = False, is_printing_to_console = False, isMainAgent = False):
         super().__init__(is_logging, is_printing_to_console, isMainAgent, "AgentSelector_")
         print(bcolors.OKGREEN + "###AgentSelector Constructor" + bcolors.ENDC)
@@ -174,22 +175,91 @@ class AgentSelector(LoserAgent):
     def resource_breakdown(self):
         return [self.mainAgent.minerals, self.mainAgent.vespene]
 
-    # kept as a reference for future code
-    # def enemy_breakdown(self):
-    #     flying_army = 0
-    #     buildings = 0
-    #     workers = 0
-    #     # Iterate through list of type Unit
-    #     # known_enemy_units does not track total enemies seen and killed each iteration
-    #     # It only keeps track about what is known about the enemy during the given game loop
-    #     for unit in self.mainAgent.known_enemy_units:
-    #         if unit.is_flying and unit.name != 'Overlord':
-    #             flying_army = flying_army + 1
-    #         if unit.is_structure:
-    #             buildings = buildings + 1
-    #         if unit.name == 'Probe' or unit.name == 'Drone' or unit.name == 'SCV':
-    #             workers = workers + 1
-    #     return flying_army, buildings, workers
+    '''
+    Breakdown entirety of protoss known structures and returns them as an array
+    '''
+    def protoss_breakdown(self):
+        probes, zealots, stalkers, sentries, adepts, high_templars, dark_templars, immortals, colussuses, \
+        disruptors, archons, observers, warp_prisms, phoenixes, void_rays, oracles, carriers, tempests, \
+        mothership_core, mothership, nexuses, pylons, assimilators, gateways, forges, cybernetics_cores, \
+        photon_cannons, robotoics_facilities, warp_gates, stargates, twilight_councils, robotics_bays, \
+        fleet_beacons, templar_archives, dark_shrines = (0,) * 35
+        for unit in self.mainAgent.known_enemy_units:
+            if unit.name == 'Probe':
+                 probes = probes + 1
+            if unit.name == 'Zealot':
+                zealots = zealots + 1
+            if unit.name == 'Stalker':
+                stalkers = stalkers + 1
+            if unit.name == 'Sentry':
+                sentries = sentries + 1
+            if unit.name == 'Adept':
+                adepts = adepts + 1
+            if unit.name == 'HighTemplar':
+                high_templars = high_templars + 1
+            if unit.name == 'DarkTemplar':
+                dark_templars = dark_templars + 1
+            if unit.name == 'Immortal':
+                immortals = immortals + 1
+            if unit.name == 'Colussus':
+                colussuses = colussuses + 1
+            if unit.name == 'Disruptor':
+                disruptors = disruptors + 1
+            if unit.name == 'Archon':
+                archons = archons + 1
+            if unit.name == 'Observer':
+                observers = observers + 1
+            if unit.name == 'WarpPrism':
+                warp_prisms = warp_prisms + 1
+            if unit.name == 'Phoenix':
+                phoenixes = phoenixes + 1
+            if unit.name == 'VoidRay':
+                void_rays = void_rays + 1
+            if unit.name == 'Oracle':
+                oracles = oracles + 1
+            if unit.name == 'Carrier':
+                carriers = carriers + 1
+            if unit.name == 'Tempest':
+                tempests = tempests + 1
+            if unit.name == 'MothershipCore':
+                mothership_core = mothership_core + 1
+            if unit.name == 'Mothership':
+                mothership = mothership + 1
+            if unit.name == 'Nexus':
+                nexuses = nexuses + 1
+            if unit.name == 'Pylon':
+                pylons = pylons + 1
+            if unit.name == 'Assimilator':
+                assimilators = assimilators + 1
+            if unit.name == 'Gateway':
+                gateways = gateways + 1
+            if unit.name == 'Forge':
+                forges = forges + 1
+            if unit.name == 'CyberneticsCore':
+                cybernetics_cores = cybernetics_cores + 1
+            if unit.name == 'PhotonCannon':
+                photon_cannons = photon_cannons + 1
+            if unit.name == 'RoboticsFacility':
+                robotoics_facilities = robotoics_facilities + 1
+            if unit.name == 'WarpGate':
+                warp_gates = warp_gates + 1
+            if unit.name == 'Stargate':
+                stargates = stargates + 1
+            if unit.name == 'TwilightCouncil':
+                twilight_councils = twilight_councils + 1
+            if unit.name == 'RoboticsBay':
+                robotics_bays = robotics_bays + 1
+            if unit.name == 'FleetBeacon':
+                fleet_beacons = fleet_beacons + 1
+            if unit.name == 'TemplarArchives':
+                templar_archives = templar_archives + 1
+            if unit.name == 'DarkShrine':
+                dark_shrines = dark_shrines + 1
+        return [probes, zealots, stalkers, sentries, adepts, high_templars, dark_templars, immortals, colussuses, \
+                disruptors, archons, observers, warp_prisms, phoenixes, void_rays, oracles, carriers, tempests, \
+                mothership_core, mothership, nexuses, pylons, assimilators, gateways, forges, cybernetics_cores, \
+                photon_cannons, robotoics_facilities, warp_gates, stargates, twilight_councils, robotics_bays, \
+                fleet_beacons, templar_archives, dark_shrines]
 
     '''
     START OF DEPRICATED CODE
@@ -257,6 +327,8 @@ class AgentSelector(LoserAgent):
             # print(bcolors.OKGREEN + "Resource breakdown: %s" % str(self.resource_breakdown()))
             # flying_army, buildings, workers = self.enemy_breakdown()
             # self.log("Flying: {0} Buildings: {1} Workers: {2}".format(str(flying_army), str(buildings), str(workers)))
+            # print(bcolors.OKGREEN + "Enemy units: %s" % str(self.mainAgent.known_enemy_units))
+            # print(bcolors.OKGREEN + "Protoss breakdown: %s" % str(self.protoss_breakdown()))
             print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
             self.learn()
             self.selectNewAgentsAndStrategies()
@@ -343,7 +415,7 @@ def main():
     # Start game with AgentSelector as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, AgentSelector(True, True, True)),
-        Computer(Race.Terran, Difficulty.Medium)
+        Computer(Race.Protoss, Difficulty.Medium)
     ], realtime=False)
 
 if __name__ == '__main__':
