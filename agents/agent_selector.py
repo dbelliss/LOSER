@@ -87,26 +87,67 @@ class AgentSelector(LoserAgent):
         self.strategiesIndex = 0
         print(bcolors.OKGREEN + "###RandomStrategyIndex: {}".format(self.strategiesIndex) + bcolors.ENDC)
 
-    # Maybe move these fitness counts to loser_agent.py?
-    def ground_army_count(self):
-        return self.mainAgent.units(QUEEN).amount + self.mainAgent.units(ZERGLING).amount + self.mainAgent.units(BANELING).amount \
-        + self.mainAgent.units(ROACH).amount + self.mainAgent.units(RAVAGER).amount + self.mainAgent.units(HYDRALISK).amount \
-        + self.mainAgent.units(LURKER).amount + self.mainAgent.units(INFESTOR).amount + self.mainAgent.units(SWARMHOSTMP).amount \
-        + self.mainAgent.units(ULTRALISK).amount + self.mainAgent.units(LOCUSTMP).amount + self.mainAgent.units(BROODLING).amount \
-        + self.mainAgent.units(CHANGELING).amount
+    '''
+    Counting our own ground units for NN inputs
+    This function excludes dealing with workers since we want to know how our workers are partioned
+    '''
+    def ground_unit_breakdown(self):
+        queens = self.mainAgent.units(QUEEN).amount + self.mainAgent.units(QUEENBURROWED).amount
+        zerglings = self.mainAgent.units(ZERGLING).amount + self.mainAgent.units(ZERGLINGBURROWED).amount
+        banelings = self.mainAgent.units(BANELING).amount + self.mainAgent.units(BANELINGBURROWED).amount
+        roaches = self.mainAgent.units(ROACH).amount + self.mainAgent.units(ROACHBURROWED).amount
+        ravagers = self.mainAgent.units(RAVAGER).amount + self.mainAgent.units(RAVAGERBURROWED).amount
+        hydralisks = self.mainAgent.units(HYDRALISK).amount + self.mainAgent.units(HYDRALISKBURROWED).amount
+        lurkers = self.mainAgent.units(LURKER).amount + self.mainAgent.units(LURKERBURROWED).amount
+        infestors = self.mainAgent.units(INFESTOR).amount + self.mainAgent.units(INFESTORBURROWED).amount
+        swarm_host = self.mainAgent.units(SWARMHOSTMP).amount + self.mainAgent.units(SWARMHOSTBURROWEDMP).amount
+        ultralisks = self.mainAgent.units(ULTRALISK).amount + self.mainAgent.units(ULTRALISKBURROWED).amount
+        locusts = self.mainAgent.units(LOCUSTMP).amount #TODO looks like there isnt a locust burrowed type but it can be flying as well?
+        broodlings = self.mainAgent.units(BROODLING).amount
+        changelings = self.mainAgent.units(CHANGELING).amount
+        infested_terrans = self.mainAgent.units(INFESTORTERRAN).amount + self.mainAgent.units(INFESTORTERRANBURROWED).amount #TODO check this is the right constant or if I should be using INFESTEDTERRAN
+        # nydus_worms = self.mainAgent.units().amount + self.mainAgent.units().amount TODO Not sure how to handle nydus netowrks...input will be helpful
+        return [queens, zerglings, banelings, roaches, ravagers, hydralisks, lurkers, swarm_host, ultralisks, locusts, broodlings, changelings, infested_terrans]
 
-    def flying_army_count(self):
-        return self.mainAgent.units(OVERSEER).amount + self.mainAgent.units(MUTALISK).amount + self.mainAgent.units(CORRUPTOR).amount \
-                + self.mainAgent.units(BROODLORD).amount + self.mainAgent.units(VIPER).amount
+    '''
+    Counting our own flying units for NN inputs
+    '''
+    def flying_unit_breakdown(self):
+        overlords = self.mainAgent.units(OVERLORD).amount
+        overseers = self.mainAgent.units(OVERSEER).amount
+        mutalisks = self.mainAgent.units(MUTALISK).amount
+        corruptors = self.mainAgent.units(CORRUPTOR).amount
+        brood_lords = self.mainAgent.units(BROODLORD).amount
+        vipers = self.mainAgent.units(VIPER).amount
+        return [overlords, overseers, mutalisks, corruptors, brood_lords, vipers]
 
-    def worker_count(self):
+    '''
+    Counting our own building units for NN inputs
+    '''
+    def building_breakdown(self):
+        hatcheries = self.mainAgent.units(HATCHERY).amount
+        spine_crawlers = self.mainAgent.units(SPINECRAWLER).amount
+        spore_crawlers = self.mainAgent.units(SPORECRAWLER).amount
+        extractors = self.mainAgent.units(EXTRACTOR).amount
+        spawning_pools = self.mainAgent.units(SPAWNINGPOOL).amount
+        evolution_chambers = self.mainAgent.units(EVOLUTIONCHAMBER).amount
+        roach_warrens = self.mainAgent.units(ROACHWARREN).amount
+        baneling_nests = self.mainAgent.units(BANELINGNEST).amount
+        creep_tumors = self.mainAgent.units(CREEPTUMOR).amount
+        lairs = self.mainAgent.units(LAIR).amount
+        hydralisk_dens = self.mainAgent.units(HYDRALISKDEN).amount
+        lurker_dens = self.mainAgent.units(LURKERDEN).amount
+        infestation_pits = self.mainAgent.units(INFESTATIONPIT).amount
+        spires = self.mainAgent.units(SPIRE).amount
+        # nydus_network TODO need to figure out how to handle nydus netowrks
+        hives = self.mainAgent.units(HIVE).amount
+        greater_spires = self.mainAgent.units(GREATERSPIRE).amount
+        ultralisk_caverns = self.mainAgent.units(ULTRALISKCAVERN).amount
+        return [hatcheries, spine_crawlers, spore_crawlers, extractors, spawning_pools, evolution_chambers, roach_warrens, baneling_nests, \
+                creep_tumors, lairs, hydralisk_dens, lurker_dens, infestation_pits, spires, hives, greater_spires, ultralisk_caverns]
+
+    def total_worker_count(self):
         return self.mainAgent.workers.amount
-
-    def mineral_count(self):
-        return self.mainAgent.minerals
-
-    def vespene_count(self):
-        return self.mainAgent.vespene
 
     def idle_workers_count(self):
         return self.mainAgent.workers.idle.amount
@@ -119,7 +160,59 @@ class AgentSelector(LoserAgent):
 
     # Should this be updated to go through mineral fields and count workers?
     def mineral_worker_count(self):
-        return self.mainAgent.worker_count() - self.mainAgent.vespene_worker_count() - self.mainAgent.idle_workers_count()
+        return self.mainAgent.total_worker_count() - self.mainAgent.vespene_worker_count() - self.mainAgent.idle_workers_count()
+
+    '''
+    Breakdown how our workers are being utilize
+    Let me know if workers can be classified as something else (ex: building something) since I could not find the equivalent for
+    mineral fields as the function used to find all vespene workers
+    '''
+    def worker_breakdown(self):
+        return [self.total_worker_count(), self.idle_workers_count(), self.vespene_worker_count(), self.mineral_worker_count()]
+
+    #TODO Potentially add rate collection for minerals and vespene which can be calculated using how many workers we have mining each?
+    def resource_breakdown(self):
+        return [self.mainAgent.minerals, self.mainAgent.vespene]
+
+    # kept as a reference for future code
+    # def enemy_breakdown(self):
+    #     flying_army = 0
+    #     buildings = 0
+    #     workers = 0
+    #     # Iterate through list of type Unit
+    #     # known_enemy_units does not track total enemies seen and killed each iteration
+    #     # It only keeps track about what is known about the enemy during the given game loop
+    #     for unit in self.mainAgent.known_enemy_units:
+    #         if unit.is_flying and unit.name != 'Overlord':
+    #             flying_army = flying_army + 1
+    #         if unit.is_structure:
+    #             buildings = buildings + 1
+    #         if unit.name == 'Probe' or unit.name == 'Drone' or unit.name == 'SCV':
+    #             workers = workers + 1
+    #     return flying_army, buildings, workers
+
+    '''
+    START OF DEPRICATED CODE
+    The following functions sandwiched between THIS STATEMENT and the next are all depricated
+    but are kept so that the overall functionality of agent_selector does not break while the code is updated
+    TODO: Update normalize_inputs() after the above code is finished to feed all inputs into NN
+    '''
+    def ground_army_count(self):
+        return self.mainAgent.units(QUEEN).amount + self.mainAgent.units(ZERGLING).amount + self.mainAgent.units(BANELING).amount \
+        + self.mainAgent.units(ROACH).amount + self.mainAgent.units(RAVAGER).amount + self.mainAgent.units(HYDRALISK).amount \
+        + self.mainAgent.units(LURKER).amount + self.mainAgent.units(INFESTOR).amount + self.mainAgent.units(SWARMHOSTMP).amount \
+        + self.mainAgent.units(ULTRALISK).amount + self.mainAgent.units(LOCUSTMP).amount + self.mainAgent.units(BROODLING).amount \
+        + self.mainAgent.units(CHANGELING).amount
+
+    def flying_army_count(self):
+        return self.mainAgent.units(OVERSEER).amount + self.mainAgent.units(MUTALISK).amount + self.mainAgent.units(CORRUPTOR).amount \
+                + self.mainAgent.units(BROODLORD).amount + self.mainAgent.units(VIPER).amount
+
+    def mineral_count(self):
+        return self.mainAgent.minerals
+
+    def vespene_count(self):
+        return self.mainAgent.vespene
 
     def building_count(self):
         return self.mainAgent.units(HATCHERY).amount + self.mainAgent.units(LAIR).amount + self.mainAgent.units(HIVE).amount + self.mainAgent.units(EXTRACTOR).amount + self.mainAgent.units(SPAWNINGPOOL).amount \
@@ -131,18 +224,6 @@ class AgentSelector(LoserAgent):
     def enemy_count(self):
         return self.mainAgent.known_enemy_units.amount
 
-    # TODO Add worker breakdown and ground army breakdown
-    def enemy_breakdown(self):
-        flying_army = 0
-        buildings = 0
-        workers = 0
-        for enemies in self.mainAgent.known_enemy_units:
-            if enemies.is_flying:
-                flying_army = flying_army + 1
-            if enemies.is_structure:
-                buildings = buildings + 1
-        return flying_army, buildings
-
     def enemy_building_count(self):
         return self.mainAgent.known_enemy_structures.amount
 
@@ -150,7 +231,7 @@ class AgentSelector(LoserAgent):
     def normalize_inputs(self):
         minerals = (self.mineral_count()/1000)
         vespene = (self.vespene_count()/1000)
-        total_workers = (self.worker_count()/200)
+        total_workers = (self.total_worker_count()/200)
         mineral_workers = (self.mineral_worker_count()/200)
         vespene_workers = (self.vespene_worker_count()/200)
         idle_workers = (self.idle_workers_count()/100)
@@ -161,13 +242,21 @@ class AgentSelector(LoserAgent):
         enemy_buildings = (self.enemy_building_count()/200)
         return [minerals, vespene, total_workers, mineral_workers, vespene_workers, idle_workers, ground_army, flying_army, buildings, enemies, enemy_buildings]
 
-    async def on_step(self, iteration):
-        # self.log("Step: %s Idle Workers: %s Overlord: %s Workers: %s " % (str(iteration), str(self.mainAgent.workers.idle.amount), str(self.mainAgent.units(OVERLORD).amount), str(self.mainAgent.workers.amount)))
-        # self.log("Normalize inputs: %s" % (str(self.mainAgent.normalize_inputs())))
+    '''
+    END OF DEPRICATED CODE
+    '''
 
+    async def on_step(self, iteration):
         # Run fitness on a certain number of steps
         if (iteration % self.stepsPerAgent == 0):
-            self.log(bcolors.OKBLUE + "Normalize inputs: %s" % (str(self.mainAgent.normalize_inputs())) + bcolors.ENDC)
+            # self.log(bcolors.OKBLUE + "Normalize inputs: %s" % (str(self.mainAgent.normalize_inputs())) + bcolors.ENDC)
+            # print(bcolors.OKGREEN + "Ground unit breakdown: %s" % str(self.ground_unit_breakdown()))
+            # print(bcolors.OKGREEN + "Flying unit breakdown: %s" % str(self.flying_unit_breakdown()))
+            # print(bcolors.OKGREEN + "Building unit breakdown: %s" % str(self.building_breakdown()))
+            # print(bcolors.OKGREEN + "Worker unit breakdown: %s" % str(self.worker_breakdown()))
+            # print(bcolors.OKGREEN + "Resource breakdown: %s" % str(self.resource_breakdown()))
+            # flying_army, buildings, workers = self.enemy_breakdown()
+            # self.log("Flying: {0} Buildings: {1} Workers: {2}".format(str(flying_army), str(buildings), str(workers)))
             print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
             self.learn()
             self.selectNewAgentsAndStrategies()
@@ -254,7 +343,7 @@ def main():
     # Start game with AgentSelector as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, AgentSelector(True, True, True)),
-        Computer(Race.Protoss, Difficulty.Medium)
+        Computer(Race.Terran, Difficulty.Medium)
     ], realtime=False)
 
 if __name__ == '__main__':
