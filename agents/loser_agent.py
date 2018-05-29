@@ -537,6 +537,10 @@ class LoserAgent(sc2.BotAI):
     def get_random_worker(self):
         return self.mainAgent.units(DRONE).random
 
+    @property
+    def game_time(self):
+        return self.state.game_loop * 0.725 * (1 / 16)
+
     '''
     From Dentosal's proxyrax build
     Targets a random known enemy unit
