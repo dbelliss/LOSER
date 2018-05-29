@@ -8,6 +8,7 @@ class ZerglingBanelingRushAgent(LoserAgent):
         self.overlord_counter = 0
         self.zergling_counter = 0
         self.baneling_counter = 0
+        self.countdown = 0
         self.extractor_started = False
         self.hatchery_started = False
         self.spawning_pool_started = False
@@ -30,9 +31,6 @@ class ZerglingBanelingRushAgent(LoserAgent):
             self.log_file = open(self.log_file_name, "w+")  # Create log file based on the time
 
     async def on_step(self, iteration):
-        self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
-        self.log(str(self.game_time))
-        self.log(str(self.get_vespene))
 
         hatchery = self.units(HATCHERY).ready.first
         larvae = self.units(LARVA)
@@ -124,9 +122,9 @@ class ZerglingBanelingRushAgent(LoserAgent):
                 print("Larva Injected")
                 print("Game Time: " + str(self.game_time))
 
-        if self.get_vespene >= 100:
+        if self.can_afford(RESEARCH_ZERGLINGMETABOLICBOOST) and not self.mboost_started:
             sp = self.units(SPAWNINGPOOL).ready
-            if sp.exists and self.minerals >= 100 and not self.mboost_started:
+            if sp.exists and self.minerals >= 100:
                 await self.do(sp.first(RESEARCH_ZERGLINGMETABOLICBOOST))
                 self.mboost_started = True
                 print("Researched Metabolic Boost")
