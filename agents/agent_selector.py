@@ -183,83 +183,169 @@ class AgentSelector(LoserAgent):
         disruptors, archons, observers, warp_prisms, phoenixes, void_rays, oracles, carriers, tempests, \
         mothership_core, mothership, nexuses, pylons, assimilators, gateways, forges, cybernetics_cores, \
         photon_cannons, robotoics_facilities, warp_gates, stargates, twilight_councils, robotics_bays, \
-        fleet_beacons, templar_archives, dark_shrines = (0,) * 35
+        fleet_beacons, templar_archives, dark_shrines, rest = (0,) * 36
         for unit in self.mainAgent.known_enemy_units:
             if unit.name == 'Probe':
                  probes = probes + 1
-            if unit.name == 'Zealot':
+            elif unit.name == 'Zealot':
                 zealots = zealots + 1
-            if unit.name == 'Stalker':
+            elif unit.name == 'Stalker':
                 stalkers = stalkers + 1
-            if unit.name == 'Sentry':
+            elif unit.name == 'Sentry':
                 sentries = sentries + 1
-            if unit.name == 'Adept':
+            elif unit.name == 'Adept':
                 adepts = adepts + 1
-            if unit.name == 'HighTemplar':
+            elif unit.name == 'HighTemplar':
                 high_templars = high_templars + 1
-            if unit.name == 'DarkTemplar':
+            elif unit.name == 'DarkTemplar':
                 dark_templars = dark_templars + 1
-            if unit.name == 'Immortal':
+            elif unit.name == 'Immortal' or unit.name == 'ImmortalBarrier':
                 immortals = immortals + 1
-            if unit.name == 'Colussus':
+            elif unit.name == 'Colossus':
                 colussuses = colussuses + 1
-            if unit.name == 'Disruptor':
+            elif unit.name == 'Disruptor':
                 disruptors = disruptors + 1
-            if unit.name == 'Archon':
+            elif unit.name == 'Archon':
                 archons = archons + 1
-            if unit.name == 'Observer':
+            elif unit.name == 'Observer' or unit.name == 'ObserverSiegeMode':
                 observers = observers + 1
-            if unit.name == 'WarpPrism':
+            elif unit.name == 'WarpPrism':
                 warp_prisms = warp_prisms + 1
-            if unit.name == 'Phoenix':
+            elif unit.name == 'Phoenix':
                 phoenixes = phoenixes + 1
-            if unit.name == 'VoidRay':
+            elif unit.name == 'VoidRay':
                 void_rays = void_rays + 1
-            if unit.name == 'Oracle':
+            elif unit.name == 'Oracle':
                 oracles = oracles + 1
-            if unit.name == 'Carrier':
+            elif unit.name == 'Carrier':
                 carriers = carriers + 1
-            if unit.name == 'Tempest':
+            elif unit.name == 'Tempest':
                 tempests = tempests + 1
-            if unit.name == 'MothershipCore':
+            elif unit.name == 'MothershipCore':
                 mothership_core = mothership_core + 1
-            if unit.name == 'Mothership':
+            elif unit.name == 'Mothership':
                 mothership = mothership + 1
-            if unit.name == 'Nexus':
+            elif unit.name == 'Nexus':
                 nexuses = nexuses + 1
-            if unit.name == 'Pylon':
+            elif unit.name == 'Pylon' or unit.name == 'PylonOvercharged':
                 pylons = pylons + 1
-            if unit.name == 'Assimilator':
+            elif unit.name == 'Assimilator':
                 assimilators = assimilators + 1
-            if unit.name == 'Gateway':
+            elif unit.name == 'Gateway':
                 gateways = gateways + 1
-            if unit.name == 'Forge':
+            elif unit.name == 'Forge':
                 forges = forges + 1
-            if unit.name == 'CyberneticsCore':
+            elif unit.name == 'CyberneticsCore':
                 cybernetics_cores = cybernetics_cores + 1
-            if unit.name == 'PhotonCannon':
+            elif unit.name == 'PhotonCannon':
                 photon_cannons = photon_cannons + 1
-            if unit.name == 'RoboticsFacility':
+            elif unit.name == 'RoboticsFacility':
                 robotoics_facilities = robotoics_facilities + 1
-            if unit.name == 'WarpGate':
+            elif unit.name == 'WarpGate':
                 warp_gates = warp_gates + 1
-            if unit.name == 'Stargate':
+            elif unit.name == 'Stargate':
                 stargates = stargates + 1
-            if unit.name == 'TwilightCouncil':
+            elif unit.name == 'TwilightCouncil':
                 twilight_councils = twilight_councils + 1
-            if unit.name == 'RoboticsBay':
+            elif unit.name == 'RoboticsBay':
                 robotics_bays = robotics_bays + 1
-            if unit.name == 'FleetBeacon':
+            elif unit.name == 'FleetBeacon':
                 fleet_beacons = fleet_beacons + 1
-            if unit.name == 'TemplarArchives':
+            elif unit.name == 'TemplarArchive':
                 templar_archives = templar_archives + 1
-            if unit.name == 'DarkShrine':
+            elif unit.name == 'DarkShrine':
                 dark_shrines = dark_shrines + 1
+            else:
+                rest = rest + 1
         return [probes, zealots, stalkers, sentries, adepts, high_templars, dark_templars, immortals, colussuses, \
                 disruptors, archons, observers, warp_prisms, phoenixes, void_rays, oracles, carriers, tempests, \
                 mothership_core, mothership, nexuses, pylons, assimilators, gateways, forges, cybernetics_cores, \
                 photon_cannons, robotoics_facilities, warp_gates, stargates, twilight_councils, robotics_bays, \
-                fleet_beacons, templar_archives, dark_shrines]
+                fleet_beacons, templar_archives, dark_shrines, rest]
+
+    # TODO Should mules, auto-turrets, and point defense drones be counted in inputs? Does MarineStimpack, MauraderLifeBoost and upgrades in general ever show?
+    def terran_breakdown(self):
+        SCVs, mules, marines, marauders, reapers, ghosts, hellions, hellbats, siege_tanks, cyclones, widow_mines, thors, \
+        auto_turrets, vikings, medivacs, liberators, ravens, banshees, battlecruisers, point_defense_drones, command_centers, \
+        planetary_fortresses, orbital_commands, supply_depots, refineries, barracks, engineering_bays, bunkers, sensor_towers, \
+        missle_turrets, factories, ghost_academies, starports, armories, fusion_cores, tech_labs, reactors, rest = (0,) *38
+        for unit in self.mainAgent.known_enemy_units:
+            if unit.name == 'SCV':
+                SCVs = SCVs + 1
+            elif unit.name == 'Mule':
+                mules = mules + 1
+            elif unit.name == 'Marine':
+                marines = marines + 1
+            elif unit.name == 'Marauder':
+                marauders = marauders + 1
+            elif unit.name == 'Reaper':
+                reapers = reapers + 1
+            elif unit.name == 'Ghost':
+                ghosts = ghosts + 1
+            elif unit.name == 'Hellion':
+                hellions = hellions + 1
+            elif unit.name == 'Hellbat':
+                hellbats = hellbats + 1
+            elif unit.name == 'SiegeTank' or unit.name == 'SiegeTankSieged':
+                siege_tanks = siege_tanks + 1
+            elif unit.name == 'Cyclone':
+                cyclones = cyclones + 1
+            elif unit.name == 'WidowMine' or unit.name == 'WidowMineBurrowed':
+                widow_mines = widow_mines + 1
+            elif unit.name == 'Thor':
+                thors = thors + 1
+            elif unit.name == 'AutoTurret':
+                auto_turrets = auto_turrets + 1
+            elif unit.name == 'Viking' or unit.name == 'VikingFighter' or unit.name == 'VikingAssault':
+                vikings = vikings + 1
+            elif unit.name == 'Medivac':
+                medivacs = medivacs + 1
+            elif unit.name == 'Liberator':
+                liberators = liberators + 1
+            elif unit.name == 'Raven':
+                ravens = ravens + 1
+            elif unit.name == 'Banshee' or unit.name == 'BansheeCloak':
+                banshees = banshees + 1
+            elif unit.name == 'Battlecruiser':
+                battlecruisers = battlecruisers + 1
+            elif unit.name == 'PointDefenseDrone':
+                point_defense_drones = point_defense_drones + 1
+            elif unit.name == 'CommandCenter' or unit.name == 'CommandCenterFlying' or unit.name == 'CommandCenterReactor':
+                command_centers = command_centers + 1
+            elif unit.name == 'PlanetaryFortress':
+                planetary_fortresses = planetary_fortresses + 1
+            elif unit.name == 'OrbitalCommand' or unit.name == 'OrbitalCommandFlying':
+                orbital_commands = orbital_commands + 1
+            elif unit.name == 'SupplyDepot' or unit.name == 'SupplyDepotLowered' or unit.name == 'SupplyDepotDrop':
+                supply_depots = supply_depots + 1
+            elif unit.name == 'Refinery':
+                refineries = refineries + 1
+            elif unit.name == 'Barracks' or unit.name == 'BarracksTechLab' or unit.name == 'BarracksReactor' or unit.name == 'BarracksTechReactor' or 'BarracksFlying':
+                barracks = barracks + 1
+            elif unit.name == 'EngineeringBay':
+                engineering_bays = engineering_bays + 1
+            elif unit.name == 'Bunker':
+                bunkers = bunkers + 1
+            elif unit.name == 'SensorTower':
+                sensor_towers = sensor_towers + 1
+            elif unit.name == 'MissleTurret':
+                missle_turrets = missle_turrets + 1
+            elif unit.name == 'Factory' or unit.name == 'FactoryFlying' or unit.name == 'FactoryReactor' or unit.name == 'FactoryTechLab' or unit.name == 'FactoryTechReactor':
+                factories = factories + 1
+            elif unit.name == 'GhostAcademy':
+                ghost_academies = ghost_academies + 1
+            elif unit.name == 'Starport' or unit.name == 'StarportFlying' or unit.name == 'StarportReactor' or unit.name == 'StarportTechLab' or unit.name == 'StarportTechReactor':
+                starports = starports + 1
+            elif unit.name == 'Armory':
+                armories = armories + 1
+            elif unit.name == 'FusionCore':
+                fusion_cores = fusion_cores + 1
+            else:
+                rest = rest + 1
+        return [SCVs, mules, marines, marauders, reapers, ghosts, hellions, hellbats, siege_tanks, cyclones, widow_mines, thors, \
+        auto_turrets, vikings, medivacs, liberators, ravens, banshees, battlecruisers, point_defense_drones, command_centers, \
+        planetary_fortresses, orbital_commands, supply_depots, refineries, barracks, engineering_bays, bunkers, sensor_towers, \
+        missle_turrets, factories, ghost_academies, starports, armories, fusion_cores, tech_labs, reactors, rest]
 
     '''
     START OF DEPRICATED CODE
@@ -327,8 +413,8 @@ class AgentSelector(LoserAgent):
             # print(bcolors.OKGREEN + "Resource breakdown: %s" % str(self.resource_breakdown()))
             # flying_army, buildings, workers = self.enemy_breakdown()
             # self.log("Flying: {0} Buildings: {1} Workers: {2}".format(str(flying_army), str(buildings), str(workers)))
-            # print(bcolors.OKGREEN + "Enemy units: %s" % str(self.mainAgent.known_enemy_units))
-            # print(bcolors.OKGREEN + "Protoss breakdown: %s" % str(self.protoss_breakdown()))
+            print(bcolors.OKGREEN + "Enemy units: %s" % str(self.mainAgent.known_enemy_units))
+            print(bcolors.OKGREEN + "Terran breakdown: %s" % str(self.terran_breakdown()))
             print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
             self.learn()
             self.selectNewAgentsAndStrategies()
@@ -415,7 +501,7 @@ def main():
     # Start game with AgentSelector as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, AgentSelector(True, True, True)),
-        Computer(Race.Protoss, Difficulty.Medium)
+        Computer(Race.Terran, Difficulty.Medium)
     ], realtime=False)
 
 if __name__ == '__main__':
