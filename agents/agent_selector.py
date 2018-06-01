@@ -18,7 +18,7 @@ from zerglingBanelingRush_agent import SpawnPoolRavagerAgent
 from NeuralNetwork import NeuralNetwork
 from strategies import Strategies
 import time
-import numpy
+from random import randint
 
 
 # Coloring for terminal output
@@ -306,11 +306,16 @@ class AgentSelector(LoserAgent):
         self.strategiesIndex = nextStrategy.index(max(nextStrategy))
 
 def main():
+    # Generate Random Opponent
+    enemyList = {1: Race.Terran, 2: Race.Zerg, 3: Race.Protoss}
+    randEnemy = randint(1, 3)
+    print(bcolors.OKGREEN + "###Opponent is " + str(enemyList[randEnemy]) + ": " + str(randEnemy) + bcolors.ENDC)
+
     # Start game with AgentSelector as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, AgentSelector(True, True, True)),
         # If you change the opponent race remember to change nInputs in the __init__ as well
-        Computer(Race.Zerg, Difficulty.Medium)
+        Computer(enemyList[randEnemy], Difficulty.Medium)
     ], realtime=False)
 
 if __name__ == '__main__':
