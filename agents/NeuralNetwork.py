@@ -8,11 +8,17 @@ from keras import backend as K
 
 
 class NeuralNetwork():
-    def __init__(self, nInputs, nOutputs, depth, width, epochs):
+    def __init__(self, nInputs, nOutputs, depth, width, epochs, opponent_race):
         self.nInputs = nInputs
         self.nOutputs = nOutputs
         self.epochs = epochs
-        self.fileName = "model_{0}{1}{2}{3}".format(nInputs,nOutputs,depth,width)
+        if opponent_race == 1:
+            self.fileName = "terran_model_{0}{1}{2}{3}".format(nInputs,nOutputs,depth,width)
+        elif opponent_race == 2:
+            self.fileName = "zerg_model_{0}{1}{2}{3}".format(nInputs,nOutputs,depth,width)
+        else:
+            self.fileName = "protoss_mode_{0}{1}{2}{3}".format(nInputs,nOutputs,depth,width)
+        # self.fileName = "model_{0}{1}{2}{3}".format(nInputs,nOutputs,depth,width)
         self.model = Sequential()
         for i in range(depth):
             self.model.add(Dense(math.floor(nInputs * width), input_dim=nInputs, kernel_initializer='random_uniform'))
@@ -46,7 +52,7 @@ class NeuralNetwork():
 #We can see that the inputs must be arrays of arrays, and must be normalized
 #Even though this NN uses a sigmoid activation function, it still can predict linear results well
 if __name__ == '__main__':
-    network = NeuralNetwork(2,2,1,2,10000)
+    network = NeuralNetwork(2,2,1,2,10000, 1)
     network.loadWeights()
     inputs = [[2,1],[4,1],[16,8],[21,11]]
     outputs=[[1,2],[3,4],[8,16],[10,21]]
