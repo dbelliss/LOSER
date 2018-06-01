@@ -61,8 +61,8 @@ class AgentSelector(LoserAgent):
         self.curStep = 0
         self.timesSwitched = 0
 
-        # number of calculated inputs such as army size, mineral rate, etc. prevInput list must be same length as this value
-        self.nInputs = 11
+        # Terran and Zerg = 87, Protoss = 82
+        self.nInputs = 82
 
         self.prevInputs = [0] * self.nInputs
         self.prevAgent = 0
@@ -88,333 +88,134 @@ class AgentSelector(LoserAgent):
         self.strategiesIndex = 0
         print(bcolors.OKGREEN + "###RandomStrategyIndex: {}".format(self.strategiesIndex) + bcolors.ENDC)
 
-    '''
-    Counting our own ground units for NN inputs
-    This function excludes dealing with workers since we want to know how our workers are partioned
-    '''
-    def ground_unit_breakdown(self):
-        queens = self.mainAgent.units(QUEEN).amount + self.mainAgent.units(QUEENBURROWED).amount
-        zerglings = self.mainAgent.units(ZERGLING).amount + self.mainAgent.units(ZERGLINGBURROWED).amount
-        banelings = self.mainAgent.units(BANELING).amount + self.mainAgent.units(BANELINGBURROWED).amount
-        roaches = self.mainAgent.units(ROACH).amount + self.mainAgent.units(ROACHBURROWED).amount
-        ravagers = self.mainAgent.units(RAVAGER).amount + self.mainAgent.units(RAVAGERBURROWED).amount
-        hydralisks = self.mainAgent.units(HYDRALISK).amount + self.mainAgent.units(HYDRALISKBURROWED).amount
-        lurkers = self.mainAgent.units(LURKER).amount + self.mainAgent.units(LURKERBURROWED).amount
-        infestors = self.mainAgent.units(INFESTOR).amount + self.mainAgent.units(INFESTORBURROWED).amount
-        swarm_host = self.mainAgent.units(SWARMHOSTMP).amount + self.mainAgent.units(SWARMHOSTBURROWEDMP).amount
-        ultralisks = self.mainAgent.units(ULTRALISK).amount + self.mainAgent.units(ULTRALISKBURROWED).amount
-        locusts = self.mainAgent.units(LOCUSTMP).amount #TODO looks like there isnt a locust burrowed type but it can be flying as well?
-        broodlings = self.mainAgent.units(BROODLING).amount
-        changelings = self.mainAgent.units(CHANGELING).amount
-        infested_terrans = self.mainAgent.units(INFESTORTERRAN).amount + self.mainAgent.units(INFESTORTERRANBURROWED).amount #TODO check this is the right constant or if I should be using INFESTEDTERRAN
-        # nydus_worms = self.mainAgent.units().amount + self.mainAgent.units().amount TODO Not sure how to handle nydus netowrks...input will be helpful
-        return [queens, zerglings, banelings, roaches, ravagers, hydralisks, lurkers, swarm_host, ultralisks, locusts, broodlings, changelings, infested_terrans]
-
-    '''
-    Counting our own flying units for NN inputs
-    '''
-    def flying_unit_breakdown(self):
-        overlords = self.mainAgent.units(OVERLORD).amount
-        overseers = self.mainAgent.units(OVERSEER).amount
-        mutalisks = self.mainAgent.units(MUTALISK).amount
-        corruptors = self.mainAgent.units(CORRUPTOR).amount
-        brood_lords = self.mainAgent.units(BROODLORD).amount
-        vipers = self.mainAgent.units(VIPER).amount
-        return [overlords, overseers, mutalisks, corruptors, brood_lords, vipers]
-
-    '''
-    Counting our own building units for NN inputs
-    '''
-    def building_breakdown(self):
-        hatcheries = self.mainAgent.units(HATCHERY).amount
-        spine_crawlers = self.mainAgent.units(SPINECRAWLER).amount
-        spore_crawlers = self.mainAgent.units(SPORECRAWLER).amount
-        extractors = self.mainAgent.units(EXTRACTOR).amount
-        spawning_pools = self.mainAgent.units(SPAWNINGPOOL).amount
-        evolution_chambers = self.mainAgent.units(EVOLUTIONCHAMBER).amount
-        roach_warrens = self.mainAgent.units(ROACHWARREN).amount
-        baneling_nests = self.mainAgent.units(BANELINGNEST).amount
-        creep_tumors = self.mainAgent.units(CREEPTUMOR).amount
-        lairs = self.mainAgent.units(LAIR).amount
-        hydralisk_dens = self.mainAgent.units(HYDRALISKDEN).amount
-        lurker_dens = self.mainAgent.units(LURKERDEN).amount
-        infestation_pits = self.mainAgent.units(INFESTATIONPIT).amount
-        spires = self.mainAgent.units(SPIRE).amount
-        # nydus_network TODO need to figure out how to handle nydus netowrks
-        hives = self.mainAgent.units(HIVE).amount
-        greater_spires = self.mainAgent.units(GREATERSPIRE).amount
-        ultralisk_caverns = self.mainAgent.units(ULTRALISKCAVERN).amount
-        return [hatcheries, spine_crawlers, spore_crawlers, extractors, spawning_pools, evolution_chambers, roach_warrens, baneling_nests, \
-                creep_tumors, lairs, hydralisk_dens, lurker_dens, infestation_pits, spires, hives, greater_spires, ultralisk_caverns]
-
-    def total_worker_count(self):
-        return self.mainAgent.workers.amount
-
-    def idle_workers_count(self):
-        return self.mainAgent.workers.idle.amount
-
     def vespene_worker_count(self):
         workers = 0
         for extractor in self.mainAgent.units(EXTRACTOR):
             workers = workers + extractor.assigned_harvesters
         return workers
 
-    # Should this be updated to go through mineral fields and count workers?
-    def mineral_worker_count(self):
-        return self.mainAgent.total_worker_count() - self.mainAgent.vespene_worker_count() - self.mainAgent.idle_workers_count()
-
     '''
-    Breakdown how our workers are being utilize
-    Let me know if workers can be classified as something else (ex: building something) since I could not find the equivalent for
-    mineral fields as the function used to find all vespene workers
+    Establishes the unit lists that are used for unit breakdowns for each race. These lists
+    include standard units, special units that we want to be counted as other units (ex: burrowed stuff)
+    and ignored_units (which is only used for Zerg because we dont really care about eggs, larva, etc.)
     '''
-    def worker_breakdown(self):
-        return [self.total_worker_count(), self.idle_workers_count(), self.vespene_worker_count(), self.mineral_worker_count()]
-
-    #TODO Potentially add rate collection for minerals and vespene which can be calculated using how many workers we have mining each?
-    def resource_breakdown(self):
-        return [self.mainAgent.minerals, self.mainAgent.vespene]
-
-    '''
-    Breakdown entirety of protoss known structures and returns them as an array
-    '''
-    def protoss_breakdown(self):
-        probes, zealots, stalkers, sentries, adepts, high_templars, dark_templars, immortals, colussuses, \
-        disruptors, archons, observers, warp_prisms, phoenixes, void_rays, oracles, carriers, tempests, \
-        mothership_core, mothership, nexuses, pylons, assimilators, gateways, forges, cybernetics_cores, \
-        photon_cannons, robotoics_facilities, warp_gates, stargates, twilight_councils, robotics_bays, \
-        fleet_beacons, templar_archives, dark_shrines, rest = (0,) * 36
-        for unit in self.mainAgent.known_enemy_units:
-            if unit.name == 'Probe':
-                 probes = probes + 1
-            elif unit.name == 'Zealot':
-                zealots = zealots + 1
-            elif unit.name == 'Stalker':
-                stalkers = stalkers + 1
-            elif unit.name == 'Sentry':
-                sentries = sentries + 1
-            elif unit.name == 'Adept':
-                adepts = adepts + 1
-            elif unit.name == 'HighTemplar':
-                high_templars = high_templars + 1
-            elif unit.name == 'DarkTemplar':
-                dark_templars = dark_templars + 1
-            elif unit.name == 'Immortal' or unit.name == 'ImmortalBarrier':
-                immortals = immortals + 1
-            elif unit.name == 'Colossus':
-                colussuses = colussuses + 1
-            elif unit.name == 'Disruptor':
-                disruptors = disruptors + 1
-            elif unit.name == 'Archon':
-                archons = archons + 1
-            elif unit.name == 'Observer' or unit.name == 'ObserverSiegeMode':
-                observers = observers + 1
-            elif unit.name == 'WarpPrism':
-                warp_prisms = warp_prisms + 1
-            elif unit.name == 'Phoenix':
-                phoenixes = phoenixes + 1
-            elif unit.name == 'VoidRay':
-                void_rays = void_rays + 1
-            elif unit.name == 'Oracle':
-                oracles = oracles + 1
-            elif unit.name == 'Carrier':
-                carriers = carriers + 1
-            elif unit.name == 'Tempest':
-                tempests = tempests + 1
-            elif unit.name == 'MothershipCore':
-                mothership_core = mothership_core + 1
-            elif unit.name == 'Mothership':
-                mothership = mothership + 1
-            elif unit.name == 'Nexus':
-                nexuses = nexuses + 1
-            elif unit.name == 'Pylon' or unit.name == 'PylonOvercharged':
-                pylons = pylons + 1
-            elif unit.name == 'Assimilator':
-                assimilators = assimilators + 1
-            elif unit.name == 'Gateway':
-                gateways = gateways + 1
-            elif unit.name == 'Forge':
-                forges = forges + 1
-            elif unit.name == 'CyberneticsCore':
-                cybernetics_cores = cybernetics_cores + 1
-            elif unit.name == 'PhotonCannon':
-                photon_cannons = photon_cannons + 1
-            elif unit.name == 'RoboticsFacility':
-                robotoics_facilities = robotoics_facilities + 1
-            elif unit.name == 'WarpGate':
-                warp_gates = warp_gates + 1
-            elif unit.name == 'Stargate':
-                stargates = stargates + 1
-            elif unit.name == 'TwilightCouncil':
-                twilight_councils = twilight_councils + 1
-            elif unit.name == 'RoboticsBay':
-                robotics_bays = robotics_bays + 1
-            elif unit.name == 'FleetBeacon':
-                fleet_beacons = fleet_beacons + 1
-            elif unit.name == 'TemplarArchive':
-                templar_archives = templar_archives + 1
-            elif unit.name == 'DarkShrine':
-                dark_shrines = dark_shrines + 1
-            else:
-                rest = rest + 1
-        return [probes, zealots, stalkers, sentries, adepts, high_templars, dark_templars, immortals, colussuses, \
-                disruptors, archons, observers, warp_prisms, phoenixes, void_rays, oracles, carriers, tempests, \
-                mothership_core, mothership, nexuses, pylons, assimilators, gateways, forges, cybernetics_cores, \
-                photon_cannons, robotoics_facilities, warp_gates, stargates, twilight_councils, robotics_bays, \
-                fleet_beacons, templar_archives, dark_shrines, rest]
-
     # TODO Should mules, auto-turrets, and point defense drones be counted in inputs? Does MarineStimpack, MauraderLifeBoost and upgrades in general ever show?
-    def terran_breakdown(self):
-        SCVs, mules, marines, marauders, reapers, ghosts, hellions, hellbats, siege_tanks, cyclones, widow_mines, thors, \
-        auto_turrets, vikings, medivacs, liberators, ravens, banshees, battlecruisers, point_defense_drones, command_centers, \
-        planetary_fortresses, orbital_commands, supply_depots, refineries, barracks, engineering_bays, bunkers, sensor_towers, \
-        missle_turrets, factories, ghost_academies, starports, armories, fusion_cores, tech_labs, reactors, rest = (0,) *38
-        for unit in self.mainAgent.known_enemy_units:
-            if unit.name == 'SCV':
-                SCVs = SCVs + 1
-            elif unit.name == 'Mule':
-                mules = mules + 1
-            elif unit.name == 'Marine':
-                marines = marines + 1
-            elif unit.name == 'Marauder':
-                marauders = marauders + 1
-            elif unit.name == 'Reaper':
-                reapers = reapers + 1
-            elif unit.name == 'Ghost':
-                ghosts = ghosts + 1
-            elif unit.name == 'Hellion':
-                hellions = hellions + 1
-            elif unit.name == 'Hellbat':
-                hellbats = hellbats + 1
-            elif unit.name == 'SiegeTank' or unit.name == 'SiegeTankSieged':
-                siege_tanks = siege_tanks + 1
-            elif unit.name == 'Cyclone':
-                cyclones = cyclones + 1
-            elif unit.name == 'WidowMine' or unit.name == 'WidowMineBurrowed':
-                widow_mines = widow_mines + 1
-            elif unit.name == 'Thor':
-                thors = thors + 1
-            elif unit.name == 'AutoTurret':
-                auto_turrets = auto_turrets + 1
-            elif unit.name == 'Viking' or unit.name == 'VikingFighter' or unit.name == 'VikingAssault':
-                vikings = vikings + 1
-            elif unit.name == 'Medivac':
-                medivacs = medivacs + 1
-            elif unit.name == 'Liberator':
-                liberators = liberators + 1
-            elif unit.name == 'Raven':
-                ravens = ravens + 1
-            elif unit.name == 'Banshee' or unit.name == 'BansheeCloak':
-                banshees = banshees + 1
-            elif unit.name == 'Battlecruiser':
-                battlecruisers = battlecruisers + 1
-            elif unit.name == 'PointDefenseDrone':
-                point_defense_drones = point_defense_drones + 1
-            elif unit.name == 'CommandCenter' or unit.name == 'CommandCenterFlying' or unit.name == 'CommandCenterReactor':
-                command_centers = command_centers + 1
-            elif unit.name == 'PlanetaryFortress':
-                planetary_fortresses = planetary_fortresses + 1
-            elif unit.name == 'OrbitalCommand' or unit.name == 'OrbitalCommandFlying':
-                orbital_commands = orbital_commands + 1
-            elif unit.name == 'SupplyDepot' or unit.name == 'SupplyDepotLowered' or unit.name == 'SupplyDepotDrop':
-                supply_depots = supply_depots + 1
-            elif unit.name == 'Refinery':
-                refineries = refineries + 1
-            elif unit.name == 'Barracks' or unit.name == 'BarracksTechLab' or unit.name == 'BarracksReactor' or unit.name == 'BarracksTechReactor' or 'BarracksFlying':
-                barracks = barracks + 1
-            elif unit.name == 'EngineeringBay':
-                engineering_bays = engineering_bays + 1
-            elif unit.name == 'Bunker':
-                bunkers = bunkers + 1
-            elif unit.name == 'SensorTower':
-                sensor_towers = sensor_towers + 1
-            elif unit.name == 'MissleTurret':
-                missle_turrets = missle_turrets + 1
-            elif unit.name == 'Factory' or unit.name == 'FactoryFlying' or unit.name == 'FactoryReactor' or unit.name == 'FactoryTechLab' or unit.name == 'FactoryTechReactor':
-                factories = factories + 1
-            elif unit.name == 'GhostAcademy':
-                ghost_academies = ghost_academies + 1
-            elif unit.name == 'Starport' or unit.name == 'StarportFlying' or unit.name == 'StarportReactor' or unit.name == 'StarportTechLab' or unit.name == 'StarportTechReactor':
-                starports = starports + 1
-            elif unit.name == 'Armory':
-                armories = armories + 1
-            elif unit.name == 'FusionCore':
-                fusion_cores = fusion_cores + 1
-            else:
-                rest = rest + 1
-        return [SCVs, mules, marines, marauders, reapers, ghosts, hellions, hellbats, siege_tanks, cyclones, widow_mines, thors, \
-        auto_turrets, vikings, medivacs, liberators, ravens, banshees, battlecruisers, point_defense_drones, command_centers, \
-        planetary_fortresses, orbital_commands, supply_depots, refineries, barracks, engineering_bays, bunkers, sensor_towers, \
-        missle_turrets, factories, ghost_academies, starports, armories, fusion_cores, tech_labs, reactors, rest]
+    # TODO How should nydus worms/networks be dealt with?
+    # 1 = Terran 2 = Zerg 3 = Protoss
+    def unit_setter(self, player_race):
+        if player_race == 1:
+            unit_names = [
+                'SCV', 'Mules', 'Marine', 'Marauder', 'Reaper', 'Ghost', 'HellionTank', 'Hellbat', 'SiegeTank', 'Cyclone', 'WidowMine', 'Thor',
+                'AutoTurret', 'Viking', 'Medivac', 'Liberator', 'Raven', 'Banshee', 'Battlecruiser', 'PointDefenseDrone', 'CommandCenter',
+                'PlanetaryFortress', 'OrbitalCommand', 'SupplyDepot', 'Refinery', 'Barracks', 'EngineeringBay', 'Bunker', 'SensorTower',
+                'MissileTurret', 'Factory', 'GhostAcademy', 'Starport', 'Armory', 'FusionCore', 'CommandCenterFlying', 'OrbitalCommandFlying',
+                'BarracksFlying', 'FactoryFlying', 'StarportFlying', 'rest'
+            ]
+            special_units = {
+                'SiegeTankSieged': 'SiegeTank', 'WidowMineBurrowed': 'WidowMine', 'VikingFighter': 'Viking', 'VikingAssault': 'Viking', 'BansheeCloak': 'Banshee', 'CommandCenterFlying': 'CommandCenter',
+                'CommandCenterReactor': 'CommandCenter', 'OrbitalCommandFlying': 'OrbitalCommand', 'SupplyDepotDrop': 'SupplyDepot', 'SupplyDepotLowered': 'SupplyDepot', 'BarracksFlying': 'Barracks',
+                'BarracksReactor': 'Barracks', 'BarracksTechLab': 'Barracks', 'BarracksTechReactor': 'Barracks', 'FactoryFlying': 'Factory', 'FactoryTechLab': 'Factory', 'FactoryReactor': 'Factory',
+                'FactoryTechReactor': 'Factory', 'StarportFlying': 'Starport', 'StarportTechLab': 'Starport', 'StarportTechReactor': 'Starport', 'StarportReactor': 'Starport'
+            }
+            ignored_units = [' ']
+        elif player_race == 2:
+            unit_names = [
+                'Cocoon', 'Drone', 'Queen', 'Zergling', 'Baneling', 'Roach', 'Ravager', 'Hydralisk', 'Lurker', 'Infestor', 'SwarmHostMP', 'Ultralisk',
+                'LocustMP', 'Broodling', 'BroodlingEscort', 'Changeling', 'InfestorTerran', 'Overlord', 'Overseer', 'Mutalisk', 'Corruptor', 'BroodLord', 'Viper', 'Hatchery',
+                'SpineCrawler', 'SporeCrawler', 'Extractor', 'SpawningPool', 'EvolutionChamber', 'RoachWarren', 'BanelingNest', 'CreepTumor', 'Lair',
+                'HydraliskDen', 'LurkerDenMP', 'InfestationPit', 'Spire', 'Hive', 'GreaterSpire', 'UltraliskCavern', 'rest'
+            ]
+            special_units = {
+                'RavagerCocoon': 'Cocoon', 'BanelingCocoon': 'Cocoon', 'OverlordCocoon': 'Cocoon', 'BroodLordCocoon': 'Cocoon', 'DroneBurrowed': 'Drone', 'QueenBurrowed': 'Queen',
+                'ZerglingBurrowed': 'Zergling', 'BanelingBurrowed': 'Baneling', 'RoachBurrowed': 'Roach', 'RavagerBurrowed': 'Ravager', 'HydraliskBurrowed': 'Hydralisk', 'LurkerMPBurrowed': 'Lurker', 'LurkerMP': 'Lurker',
+                'InfestorBurrowed': 'Infestor', 'SwarmHostBurrowedMP': 'SwarmHostMP', 'UltraliskBurrowed': 'Ultralisk', 'LocustMPFlying': 'Locust', 'ChangelingMarine': 'Changeling', 'ChangelingZealot': 'Changeling',
+                'ChangelingZergling': 'Changeling', 'InfestorTerranBurrowed': 'InfestorTerran', 'OverlordTransport': 'Overlord', 'OverseerSiegeMode': 'Overseer', 'SpineCrawlerUprooted': 'SpineCrawler',
+                'SporeCrawlerUprooted': 'SporeCrawler', 'CreepTumorBurrowed': 'CreepTumor'
+            }
+            ignored_units = ['Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg']
+        else:
+            unit_names = [
+                'Probe', 'Zealot', 'Stalker', 'Sentry', 'Adept', 'HighTemplar', 'DarkTemplar', 'Immortal', 'Colossus', 'Interceptor'
+                'Disruptor', 'Archon', 'Observer', 'WarpPrism', 'Phoenix', 'VoidRay', 'Oracle', 'Carrier', 'Tempest',
+                'MothershipCore', 'Mothership', 'Nexus', 'Pylon', 'Assimilator', 'Gateway', 'Forge', 'CyberneticsCore',
+                'PhotonCannon', 'RoboticsFacility', 'WarpGate', 'Stargate', 'TwilightCouncil', 'RoboticsBay',
+                'FleetBeacon', 'TemplarArchive', 'DarkShrine', 'rest'
+            ]
+            special_units = {
+                'ImmortalBarrier': 'Immortal', 'ObserverSiegeMode': 'Observer', 'PylonOvercharged': 'Pylon'
+            }
+            ignored_units = [' ']
+        unit_breakdown = {key: 0 for key in unit_names}
+        return unit_breakdown, special_units, ignored_units
 
     '''
-    START OF DEPRICATED CODE
-    The following functions sandwiched between THIS STATEMENT and the next are all depricated
-    but are kept so that the overall functionality of agent_selector does not break while the code is updated
-    TODO: Update normalize_inputs() after the above code is finished to feed all inputs into NN
+    Creates the actual counts of units known at the time for either self or enemy.
     '''
-    def ground_army_count(self):
-        return self.mainAgent.units(QUEEN).amount + self.mainAgent.units(ZERGLING).amount + self.mainAgent.units(BANELING).amount \
-        + self.mainAgent.units(ROACH).amount + self.mainAgent.units(RAVAGER).amount + self.mainAgent.units(HYDRALISK).amount \
-        + self.mainAgent.units(LURKER).amount + self.mainAgent.units(INFESTOR).amount + self.mainAgent.units(SWARMHOSTMP).amount \
-        + self.mainAgent.units(ULTRALISK).amount + self.mainAgent.units(LOCUSTMP).amount + self.mainAgent.units(BROODLING).amount \
-        + self.mainAgent.units(CHANGELING).amount
-
-    def flying_army_count(self):
-        return self.mainAgent.units(OVERSEER).amount + self.mainAgent.units(MUTALISK).amount + self.mainAgent.units(CORRUPTOR).amount \
-                + self.mainAgent.units(BROODLORD).amount + self.mainAgent.units(VIPER).amount
-
-    def mineral_count(self):
-        return self.mainAgent.minerals
-
-    def vespene_count(self):
-        return self.mainAgent.vespene
-
-    def building_count(self):
-        return self.mainAgent.units(HATCHERY).amount + self.mainAgent.units(LAIR).amount + self.mainAgent.units(HIVE).amount + self.mainAgent.units(EXTRACTOR).amount + self.mainAgent.units(SPAWNINGPOOL).amount \
-               + self.mainAgent.units(ROACHWARREN).amount + self.mainAgent.units(CREEPTUMOR).amount + self.mainAgent.units(EVOLUTIONCHAMBER).amount + self.mainAgent.units(HYDRALISKDEN).amount \
-               + self.mainAgent.units(SPIRE).amount + self.mainAgent.units(GREATERSPIRE).amount + self.mainAgent.units(ULTRALISKCAVERN).amount + self.mainAgent.units(INFESTATIONPIT).amount \
-               + self.mainAgent.units(NYDUSNETWORK).amount + self.mainAgent.units(BANELINGNEST).amount + self.mainAgent.units(SPINECRAWLER).amount + self.mainAgent.units(SPORECRAWLER).amount \
-               + self.mainAgent.units(LURKERDEN).amount + self.mainAgent.units(LURKERDENMP).amount
-
-    def enemy_count(self):
-        return self.mainAgent.known_enemy_units.amount
-
-    def enemy_building_count(self):
-        return self.mainAgent.known_enemy_structures.amount
-
-    # May need to change the building normalization
-    def normalize_inputs(self):
-        minerals = (self.mineral_count()/1000)
-        vespene = (self.vespene_count()/1000)
-        total_workers = (self.total_worker_count()/200)
-        mineral_workers = (self.mineral_worker_count()/200)
-        vespene_workers = (self.vespene_worker_count()/200)
-        idle_workers = (self.idle_workers_count()/100)
-        ground_army = (self.ground_army_count()/200)
-        flying_army = (self.flying_army_count()/200)
-        buildings = (self.building_count()/200)
-        enemies = (self.enemy_count()/200)
-        enemy_buildings = (self.enemy_building_count()/200)
-        return [minerals, vespene, total_workers, mineral_workers, vespene_workers, idle_workers, ground_army, flying_army, buildings, enemies, enemy_buildings]
+    def unit_breakdown(self, owned, player_race):
+        unit_breakdown, special_units, ignored_units = self.unit_setter(player_race)
+        if owned:
+            for unit in self.mainAgent.units:
+                if unit.name in ignored_units:
+                    continue
+                try:
+                    unit_breakdown[unit.name] += 1
+                except KeyError:
+                    try:
+                        unit_breakdown[special_units[unit.name]] += 1
+                    except KeyError:
+                        self.log("Names not covered: {0}".format(str(unit.name)))
+                        unit_breakdown['rest'] += 1
+        else:
+            for unit in self.mainAgent.known_enemy_units:
+                if unit.name in ignored_units:
+                    continue
+                try:
+                    unit_breakdown[unit.name] += 1
+                except KeyError:
+                    try:
+                        unit_breakdown[special_units[unit.name]] += 1
+                    except KeyError:
+                        self.log("Names not covered: {0}".format(str(unit.name)))
+                        unit_breakdown['rest'] += 1
+        # return unit_breakdown -> only use for debugging if you want to see what the values look like
+        return [unit_breakdown[key] for key in unit_breakdown]
 
     '''
-    END OF DEPRICATED CODE
+    Creates and normalize all inputs for NN. These include total unit breakdown for both self and enemy,
+    worker breakdown, and current resources. All units and buildings are divided by 200 which should keep everything
+    normalized fairly well and resources are divided by 1000 which may need to be changed later.
     '''
+    def create_inputs(self):
+        # Create ownded unit inputs
+        owned = self.unit_breakdown(True, 2)
+        idle_workers = self.mainAgent.workers.idle.amount
+        vespene_workers = self.vespene_worker_count()
+        # estimation of how many are mining minerals
+        mineral_workers = owned[1] - idle_workers - vespene_workers
+        # Inserts worker breakdown by total drone count
+        owned.insert(2, vespene_workers)
+        owned.insert(2, mineral_workers)
+        owned.insert(2, idle_workers)
+        # Normalize unit count
+        normalized_owned = [unit / 200 for unit in owned]
+        # Gather resource info and append onto owned inputs
+        resources = [self.mainAgent.minerals/1000, self.mainAgent.vespene/1000]
+        normalized_owned.extend(resources)
+        # Create enemy unit inputs
+        enemy = self.unit_breakdown(False, self.mainAgent.game_info.player_races[2])
+        normalized_enemy = [unit / 200 for unit in enemy]
+        inputs = normalized_owned + normalized_enemy
+        return inputs
 
     async def on_step(self, iteration):
         # Run fitness on a certain number of steps
         if (iteration % self.stepsPerAgent == 0):
-            # self.log(bcolors.OKBLUE + "Normalize inputs: %s" % (str(self.mainAgent.normalize_inputs())) + bcolors.ENDC)
-            # print(bcolors.OKGREEN + "Ground unit breakdown: %s" % str(self.ground_unit_breakdown()))
-            # print(bcolors.OKGREEN + "Flying unit breakdown: %s" % str(self.flying_unit_breakdown()))
-            # print(bcolors.OKGREEN + "Building unit breakdown: %s" % str(self.building_breakdown()))
-            # print(bcolors.OKGREEN + "Worker unit breakdown: %s" % str(self.worker_breakdown()))
-            # print(bcolors.OKGREEN + "Resource breakdown: %s" % str(self.resource_breakdown()))
-            # flying_army, buildings, workers = self.enemy_breakdown()
             # self.log("Flying: {0} Buildings: {1} Workers: {2}".format(str(flying_army), str(buildings), str(workers)))
-            print(bcolors.OKGREEN + "Enemy units: %s" % str(self.mainAgent.known_enemy_units))
-            print(bcolors.OKGREEN + "Terran breakdown: %s" % str(self.terran_breakdown()))
+            # In case you want to check my work, these are some helpful print statements
+            # print(bcolors.OKGREEN + "Self units: %s" % str(self.mainAgent.units))
+            # print(bcolors.OKGREEN + "Length of inputs: %s" % str(len(self.create_inputs())))
+            # print(bcolors.OKBLUE + "Inputs: {} ".format(self.create_inputs()))
+            # print(bcolors.OKGREEN + "Ownded units breakdown: %s" % str(self.owned_units()))
             print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
             self.learn()
             self.selectNewAgentsAndStrategies()
@@ -467,7 +268,7 @@ class AgentSelector(LoserAgent):
 
         #define other inputs to NN
         # curInputs = [0]
-        curInputs = self.mainAgent.normalize_inputs()
+        curInputs = self.mainAgent.create_inputs()
 
         #create list for all the inputs to the neural network
         curAgent = [0] * self.nAgents
@@ -501,7 +302,8 @@ def main():
     # Start game with AgentSelector as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, AgentSelector(True, True, True)),
-        Computer(Race.Terran, Difficulty.Medium)
+        # If you change the opponent race remember to change nInputs in the __init__ as well
+        Computer(Race.Protoss, Difficulty.Medium)
     ], realtime=False)
 
 if __name__ == '__main__':
