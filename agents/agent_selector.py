@@ -61,21 +61,16 @@ class AgentSelector(LoserAgent):
         self.curStep = 0
         self.timesSwitched = 0
 
+        ''' Variables initialized by setupInputs() when game starts'''
         # Terran and Zerg = 87, Protoss = 82
-        self.nInputs = 87
+        self.nInputs = 0
+        self.prevInputs = []
+        self.agentNN = None
+        self.strategyNN = None
 
-        self.prevInputs = [0] * self.nInputs
         self.prevAgent = 0
         self.prevStrategy = 0
         self.lastFitness = 0
-
-        # inputs = nData inputs + nAgents (for last agent selected) + nStrategies (for last strategy selected)
-        # outputs = nAgents
-        self.agentNN = NeuralNetwork(self.nInputs + self.nAgents + self.nStrategies, self.nAgents, 1, 1, 100)
-
-        # inputs = nData inputs + 2 * nAgents (for last and current agent selected) + nStrategies (for last strategy selected)
-        # outputs = nStrategies
-        self.strategyNN = NeuralNetwork(self.nInputs + 2 * self.nAgents + self.nStrategies, self.nStrategies, 1, 1, 100)
 
     def fitness(self):
         return (self.lastFitness + .5) % 1
@@ -199,6 +194,10 @@ class AgentSelector(LoserAgent):
         return inputs
 
     async def on_step(self, iteration):
+        # Run first time setup
+        if (iteration == 0):
+            self.setupInputs()
+
         # Run fitness on a certain number of steps
         if (iteration % self.stepsPerAgent == 0):
             # self.log("Flying: {0} Buildings: {1} Workers: {2}".format(str(flying_army), str(buildings), str(workers)))
@@ -214,6 +213,25 @@ class AgentSelector(LoserAgent):
         # TODO
         # Call the current agent on_step
         await self.agents[self.curAgentIndex].on_step(iteration)
+
+    def setupInputs(self):
+        # Dry run through input creation to get idea of curInput size
+        curInputs = self.mainAgent.create_inputs()
+
+        # Initialize number of input and previous neural input list
+        self.nInputs = len(curInputs)
+        self.prevInputs = [0] * self.nInputs
+
+        # inputs = nData inputs + nAgents (for last agent selected) + nStrategies (for last strategy selected)
+        # outputs = nAgents
+        self.agentNN = NeuralNetwork(self.nInputs + self.nAgents + self.nStrategies, self.nAgents, 1, 1, 100)
+
+        # inputs = nData inputs + 2 * nAgents (for last and current agent selected) + nStrategies (for last strategy selected)
+        # outputs = nStrategies
+        self.strategyNN = NeuralNetwork(self.nInputs + 2 * self.nAgents + self.nStrategies, self.nStrategies, 1, 1, 100)
+        
+        print(bcolors.OKBLUE + "### One time neural input setup" + bcolors.ENDC)
+        print(bcolors.OKBLUE + "### Enemy is " + str(self.mainAgent.game_info.player_races[2]) + bcolors.ENDC)
 
 
     def learn(self):
@@ -256,9 +274,7 @@ class AgentSelector(LoserAgent):
 
 
     def selectNewAgentsAndStrategies(self):
-
         #define other inputs to NN
-        # curInputs = [0]
         curInputs = self.mainAgent.create_inputs()
 
         #create list for all the inputs to the neural network
