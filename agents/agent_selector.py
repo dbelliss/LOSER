@@ -60,6 +60,7 @@ class AgentSelector(LoserAgent):
         self.strategiesIndex = 0
         self.curStep = 0
         self.timesSwitched = 0
+        self.last_known_enemies = None
 
         ''' Variables initialized by setupInputs() when game starts'''
         # Terran and Zerg = 87, Protoss = 82
@@ -151,7 +152,15 @@ class AgentSelector(LoserAgent):
         if owned:
             player = self.mainAgent.units
         else:
-            player = self.mainAgent.known_enemy_units
+            # player = self.mainAgent.known_enemy_units
+            if len(self.mainAgent.known_enemy_units) != 0:
+                player = self.mainAgent.known_enemy_units
+                self.last_known_enemies = player #Update last known last_known_enemies
+            elif self.last_known_enemies != None:
+                player = self.last_known_enemies
+            else:
+                player = self.mainAgent.known_enemy_units
+
         for unit in player:
             if unit.name in ignored_units:
                 continue
@@ -206,6 +215,7 @@ class AgentSelector(LoserAgent):
             # print(bcolors.OKGREEN + "Length of inputs: %s" % str(len(self.create_inputs())))
             # print(bcolors.OKBLUE + "Inputs: {} ".format(self.create_inputs()))
             # print(bcolors.OKGREEN + "Ownded units breakdown: %s" % str(self.owned_units()))
+            print(bcolors.OKBLUE + "Enemies: {} ".format(self.last_known_enemies))
             print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
             self.learn()
             self.selectNewAgentsAndStrategies()
