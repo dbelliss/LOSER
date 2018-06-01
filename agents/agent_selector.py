@@ -62,7 +62,7 @@ class AgentSelector(LoserAgent):
         self.timesSwitched = 0
 
         # Terran and Zerg = 87, Protoss = 82
-        self.nInputs = 82
+        self.nInputs = 87
 
         self.prevInputs = [0] * self.nInputs
         self.prevAgent = 0
@@ -117,7 +117,7 @@ class AgentSelector(LoserAgent):
                 'BarracksReactor': 'Barracks', 'BarracksTechLab': 'Barracks', 'BarracksTechReactor': 'Barracks', 'FactoryFlying': 'Factory', 'FactoryTechLab': 'Factory', 'FactoryReactor': 'Factory',
                 'FactoryTechReactor': 'Factory', 'StarportFlying': 'Starport', 'StarportTechLab': 'Starport', 'StarportTechReactor': 'Starport', 'StarportReactor': 'Starport'
             }
-            ignored_units = [' ']
+            ignored_units = ['KD8Charge']
         elif player_race == 2:
             unit_names = [
                 'Cocoon', 'Drone', 'Queen', 'Zergling', 'Baneling', 'Roach', 'Ravager', 'Hydralisk', 'Lurker', 'Infestor', 'SwarmHostMP', 'Ultralisk',
@@ -154,29 +154,20 @@ class AgentSelector(LoserAgent):
     def unit_breakdown(self, owned, player_race):
         unit_breakdown, special_units, ignored_units = self.unit_setter(player_race)
         if owned:
-            for unit in self.mainAgent.units:
-                if unit.name in ignored_units:
-                    continue
-                try:
-                    unit_breakdown[unit.name] += 1
-                except KeyError:
-                    try:
-                        unit_breakdown[special_units[unit.name]] += 1
-                    except KeyError:
-                        self.log("Names not covered: {0}".format(str(unit.name)))
-                        unit_breakdown['rest'] += 1
+            player = self.mainAgent.units
         else:
-            for unit in self.mainAgent.known_enemy_units:
-                if unit.name in ignored_units:
-                    continue
+            player = self.mainAgent.known_enemy_units
+        for unit in player:
+            if unit.name in ignored_units:
+                continue
+            try:
+                unit_breakdown[unit.name] += 1
+            except KeyError:
                 try:
-                    unit_breakdown[unit.name] += 1
+                    unit_breakdown[special_units[unit.name]] += 1
                 except KeyError:
-                    try:
-                        unit_breakdown[special_units[unit.name]] += 1
-                    except KeyError:
-                        self.log("Names not covered: {0}".format(str(unit.name)))
-                        unit_breakdown['rest'] += 1
+                    self.log("Names not covered: {0}".format(str(unit.name)))
+                    unit_breakdown['rest'] += 1
         # return unit_breakdown -> only use for debugging if you want to see what the values look like
         return [unit_breakdown[key] for key in unit_breakdown]
 
@@ -303,7 +294,7 @@ def main():
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, AgentSelector(True, True, True)),
         # If you change the opponent race remember to change nInputs in the __init__ as well
-        Computer(Race.Protoss, Difficulty.Medium)
+        Computer(Race.Zerg, Difficulty.Medium)
     ], realtime=False)
 
 if __name__ == '__main__':
