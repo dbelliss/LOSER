@@ -397,7 +397,7 @@ def checkNParseArgs(args):
         elif args.difficulty.lower() == "cheatinsane":
             difficulty = Difficulty.CheatInsane
         else:
-            raise ValueError("""Unknown race: '{}'. Must be 
+            raise ValueError("""Unknown difficulty: '{}'. Must be 
             VeryEasy, Easy, Medium, MediumHard, Hard, Harder, VeryHard, CheatVision, CheatMoney, CheatInsane""".format(args.difficulty))
 
     # Number
