@@ -204,6 +204,10 @@ class AgentSelector(LoserAgent):
         inputs = normalized_owned + normalized_enemy
         return inputs
 
+    # https://stackoverflow.com/questions/32922909/how-to-stop-an-infinite-loop-safely-in-python
+    """
+    Handles signal interrupts when user uses CTRL-C in the terminal
+    """
     def signal_handler(self, signal, frame):
         global interrupted
         interrupted = True
