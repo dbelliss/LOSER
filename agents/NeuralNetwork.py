@@ -5,19 +5,25 @@ from keras.layers import Dense, Activation, Flatten
 from keras.optimizers import SGD
 from keras.callbacks import Callback
 from keras import backend as K
+import os
 
 
 class NeuralNetwork():
-    def __init__(self, nInputs, nOutputs, depth, width, epochs, opponent_race):
+    def __init__(self, nInputs, nOutputs, depth, width, epochs, opponent_race, model_type):
         self.nInputs = nInputs
         self.nOutputs = nOutputs
         self.epochs = epochs
+
+        # Make logs directory if it doesn't exist
+        if not os.path.exists("./models"):
+            os.mkdir("./models")
+
         if opponent_race == 1:
-            self.fileName = "terran_model_{0}{1}{2}{3}".format(nInputs,nOutputs,depth,width)
+            self.fileName = "./models/terran_" + model_type + "_model_{0}{1}{2}{3}".format(nInputs,nOutputs,depth,width)
         elif opponent_race == 2:
-            self.fileName = "zerg_model_{0}{1}{2}{3}".format(nInputs,nOutputs,depth,width)
+            self.fileName = "./models/zerg_" + model_type + "_model_{0}{1}{2}{3}".format(nInputs,nOutputs,depth,width)
         else:
-            self.fileName = "protoss_mode_{0}{1}{2}{3}".format(nInputs,nOutputs,depth,width)
+            self.fileName = "./models/protoss_" + model_type + "_model_{0}{1}{2}{3}".format(nInputs,nOutputs,depth,width)
         # self.fileName = "model_{0}{1}{2}{3}".format(nInputs,nOutputs,depth,width)
         self.model = Sequential()
         for i in range(depth):
@@ -52,7 +58,7 @@ class NeuralNetwork():
 #We can see that the inputs must be arrays of arrays, and must be normalized
 #Even though this NN uses a sigmoid activation function, it still can predict linear results well
 if __name__ == '__main__':
-    network = NeuralNetwork(2,2,1,2,10000, 1)
+    network = NeuralNetwork(2,2,1,2,10000, 1, "test")
     network.loadWeights()
     inputs = [[2,1],[4,1],[16,8],[21,11]]
     outputs=[[1,2],[3,4],[8,16],[10,21]]

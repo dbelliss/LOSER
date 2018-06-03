@@ -235,11 +235,13 @@ class AgentSelector(LoserAgent):
         # inputs = nData inputs + nAgents (for last agent selected) + nStrategies (for last strategy selected)
         # outputs = nAgents
         opponent_race = self.mainAgent.game_info.player_races[2]
-        self.agentNN = NeuralNetwork(self.nInputs + self.nAgents + self.nStrategies, self.nAgents, 1, 1, 100, opponent_race)
+        self.agentNN = NeuralNetwork(self.nInputs + self.nAgents + self.nStrategies, self.nAgents, 1, 1, 100, opponent_race, "agent")
+
+        self.agentNN.loadWeights()
 
         # inputs = nData inputs + 2 * nAgents (for last and current agent selected) + nStrategies (for last strategy selected)
         # outputs = nStrategies
-        self.strategyNN = NeuralNetwork(self.nInputs + 2 * self.nAgents + self.nStrategies, self.nStrategies, 1, 1, 100, opponent_race)
+        self.strategyNN = NeuralNetwork(self.nInputs + 2 * self.nAgents + self.nStrategies, self.nStrategies, 1, 1, 100, opponent_race, "strategy")
 
         print(bcolors.OKBLUE + "### One time neural input setup" + bcolors.ENDC)
         print(bcolors.OKBLUE + "### Enemy is " + str(self.mainAgent.game_info.player_races[2]) + bcolors.ENDC)
@@ -247,6 +249,7 @@ class AgentSelector(LoserAgent):
 
     def learn(self):
         curFitness = self.fitness()
+        print(bcolors.OKBLUE + "### Cur Fitness: " + str(curFitness) + bcolors.ENDC)
 
         #bogus correct choice and fitness equations for now
         correctChoice = 1 if curFitness > self.lastFitness else 0
@@ -315,6 +318,9 @@ class AgentSelector(LoserAgent):
         self.prevInputs = curInputs
         self.curAgentIndex = nextAgentIndex
         self.strategiesIndex = nextStrategy.index(max(nextStrategy))
+
+        self.agentNN.saveWeights()
+        self.strategyNN.saveWeights()
 
 def main():
     # Generate Random Opponent
