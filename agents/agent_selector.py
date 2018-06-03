@@ -338,14 +338,14 @@ class AgentSelector(LoserAgent):
 """
 Parse command line arguments
 List options: python3 agent_selector.py -h
-Example: python3 agent_selector.py -r random -d medium -n 2
+Example: python3 agent_selector.py -r protoss -d easy -n 2
 """
 def readArguments():
     parser = argparse.ArgumentParser(description="""A bot that chooses agents and strategies using a neural network -
-     Example: python3 agent_selector.py -r random -d medium -n 2""")
+     Example: python3 agent_selector.py -r protoss -d easy -n 2""")
 
     # Race
-    parser.add_argument("-r", "--race", help="The opponent bot's race: Terran, Zerg, Protoss", type=str)
+    parser.add_argument("-r", "--race", help="The opponent bot's race: Terran, Zerg, Protoss, Random", type=str)
 
     # Difficulty
     parser.add_argument("-d", "--difficulty", help="""The opponent bot's difficulty level:
