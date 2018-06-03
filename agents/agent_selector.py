@@ -445,12 +445,12 @@ def main():
         # Handles Ctrl-C exit
         try:
             if interrupted:
-                print(bcolors.FAIL + "Exiting Loop" + bcolors.ENDC)
+                print(bcolors.FAIL + "Exiting Loop - Interrupt" + bcolors.ENDC)
                 break
         # Handles X-Button exit
         except:
             if result == None:
-                print(bcolors.FAIL + "Exiting Loop1" + bcolors.ENDC)
+                print(bcolors.FAIL + "Exiting Loop - Normal" + bcolors.ENDC)
                 break
 
         
