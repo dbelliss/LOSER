@@ -5,6 +5,9 @@ from pprint import pprint
 from time import gmtime, strftime, localtime
 import sys
 import os
+import argparse
+import random
+
 # python-sc2 imports
 import sc2
 from sc2 import Race, Difficulty
@@ -17,8 +20,6 @@ from saferoach_agent import SafeRoachAgent
 from zerglingBanelingRush_agent import SpawnPoolRavagerAgent
 from NeuralNetwork import NeuralNetwork
 from strategies import Strategies
-import time
-from random import randint
 
 
 # Coloring for terminal output
@@ -322,18 +323,114 @@ class AgentSelector(LoserAgent):
         self.agentNN.saveWeights()
         self.strategyNN.saveWeights()
 
-def main():
-    # Generate Random Opponent
-    enemyList = {1: Race.Terran, 2: Race.Zerg, 3: Race.Protoss}
-    randEnemy = randint(1, 3)
-    print(bcolors.OKGREEN + "###Opponent is " + str(enemyList[randEnemy]) + ": " + str(randEnemy) + bcolors.ENDC)
+"""
+Parse command line arguments
+List options: python3 agent_selector.py -h
+Example: python3 agent_selector.py -r random -d medium -n 2
+"""
+def readArguments():
+    parser = argparse.ArgumentParser(description="""A bot that chooses agents and strategies using a neural network -
+     Example: python3 agent_selector.py -r random -d medium -n 2""")
 
-    # Start game with AgentSelector as the Bot, and begin logging
-    sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
-        Bot(Race.Zerg, AgentSelector(True, True, True)),
-        # If you change the opponent race remember to change nInputs in the __init__ as well
-        Computer(enemyList[randEnemy], Difficulty.Medium)
-    ], realtime=False)
+    # Race
+    parser.add_argument("-r", "--race", help="The opponent bot's race: Terran, Zerg, Protoss", type=str)
+
+    # Difficulty
+    parser.add_argument("-d", "--difficulty", help="""The opponent bot's difficulty level:
+     VeryEasy, Easy, Medium, MediumHard, Hard, Harder, VeryHard, CheatVision, CheatMoney, CheatInsane""", type=str)
+
+    # Number
+    parser.add_argument("-n", "--number", help="Number of games the bot will play", type=int)
+
+    return parser.parse_args()
+
+def checkNParseArgs(args):
+    # Race
+    if args.race == None:
+        race = "random"
+    else:
+        if args.race.lower() == "terran":
+            race = Race.Terran
+        elif args.race.lower() == "zerg":
+            race = Race.Zerg
+        elif args.race.lower() == "protoss":
+            race = Race.Protoss
+        elif args.race.lower() == "random":
+            race = "random"
+        else:
+            raise ValueError("Unknown race: '{}'. Must be terran, zerg, protoss, or random".format(args.race))
+
+    # Difficulty
+    if args.difficulty == None:
+        difficulty = Difficulty.Medium
+    else:
+        if args.difficulty.lower() == "veryeasy":
+            difficulty = Difficulty.VeryEasy
+        elif args.difficulty.lower() == "easy":
+            difficulty = Difficulty.Easy
+        elif args.difficulty.lower() == "medium":
+            difficulty = Difficulty.Medium
+        elif args.difficulty.lower() == "mediumhard":
+            difficulty = Difficulty.MediumHard
+        elif args.difficulty.lower() == "hard":
+            difficulty = Difficulty.Hard
+        elif args.difficulty.lower() == "harder":
+            difficulty = Difficulty.Harder
+        elif args.difficulty.lower() == "veryhard":
+            difficulty = Difficulty.VeryHard
+        elif args.difficulty.lower() == "cheatvision":
+            difficulty = Difficulty.CheatVision
+        elif args.difficulty.lower() == "cheatmoney":
+            difficulty = Difficulty.CheatMoney
+        elif args.difficulty.lower() == "cheatinsane":
+            difficulty = Difficulty.CheatInsane
+        else:
+            raise ValueError("""Unknown race: '{}'. Must be 
+            VeryEasy, Easy, Medium, MediumHard, Hard, Harder, VeryHard, CheatVision, CheatMoney, CheatInsane""".format(args.difficulty))
+
+    # Number
+    if args.number == None:
+        number = 1
+    else:
+        if args.number >= 1:
+            number = args.number
+        else:
+            raise ValueError("Number must be greater than 0, got '{}'".format(args.number))
+
+    return (race, difficulty, number)
+
+def main():
+    # Read command line arguments
+    args = readArguments()
+
+    # Check which arguments are specified otherwise use defaults
+    race, difficulty, number = checkNParseArgs(args)
+
+    print(bcolors.OKGREEN + "###Enemy Race is {}".format(race) + bcolors.ENDC)
+    print(bcolors.OKGREEN + "###Difficulty is {}".format(difficulty) + bcolors.ENDC)
+    print(bcolors.OKGREEN + "###Number of games is {}\n".format(number) + bcolors.ENDC)
+
+    # Race of enemy opponent
+    enemyRaceList = [Race.Terran, Race.Zerg, Race.Protoss]
+
+    # Play number of games
+    for _ in range(number):
+        # Generate Random Opponent
+        if race == "random":
+            enemyRace = random.choice(enemyRaceList)
+        else:
+            enemyRace = race
+        
+        print(bcolors.OKGREEN + "###Opponent is {}: {}".format(enemyRace, enemyRaceList.index(enemyRace)) + bcolors.ENDC)
+
+        # Start game with AgentSelector as the Bot, and begin logging
+        sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
+            Bot(Race.Zerg, AgentSelector(True, True, True)),
+            # If you change the opponent race remember to change nInputs in the __init__ as well
+            Computer(enemyRace, difficulty)
+        ], realtime=False)
+        
+    os._exit(1)
 
 if __name__ == '__main__':
     main()
