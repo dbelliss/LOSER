@@ -7,6 +7,7 @@ import sys
 import os
 import argparse
 import random
+import signal
 
 # python-sc2 imports
 import sc2
@@ -203,10 +204,17 @@ class AgentSelector(LoserAgent):
         inputs = normalized_owned + normalized_enemy
         return inputs
 
+    def signal_handler(self, signal, frame):
+        global interrupted
+        interrupted = True
+        print(bcolors.FAIL + "###Interrupt Received" + bcolors.ENDC)
+
     async def on_step(self, iteration):
         # Run first time setup
         if (iteration == 0):
             self.setupInputs()
+            # Setup signal handler
+            signal.signal(signal.SIGINT, self.signal_handler)
 
         # Run fitness on a certain number of steps
         if (iteration % self.stepsPerAgent == 0):
@@ -429,6 +437,11 @@ def main():
             # If you change the opponent race remember to change nInputs in the __init__ as well
             Computer(enemyRace, difficulty)
         ], realtime=False)
+
+        if interrupted:
+            print(bcolors.FAIL + "Exiting Loop" + bcolors.ENDC)
+            break
+
         
     os._exit(1)
 
