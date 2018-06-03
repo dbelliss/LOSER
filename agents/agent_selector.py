@@ -436,15 +436,22 @@ def main():
         print(bcolors.OKGREEN + "###Opponent is {}: {}".format(enemyRace, enemyRaceList.index(enemyRace)) + bcolors.ENDC)
 
         # Start game with AgentSelector as the Bot, and begin logging
-        sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
+        result = sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
             Bot(Race.Zerg, AgentSelector(True, True, True)),
             # If you change the opponent race remember to change nInputs in the __init__ as well
             Computer(enemyRace, difficulty)
         ], realtime=False)
 
-        if interrupted:
-            print(bcolors.FAIL + "Exiting Loop" + bcolors.ENDC)
-            break
+        # Handles Ctrl-C exit
+        try:
+            if interrupted:
+                print(bcolors.FAIL + "Exiting Loop" + bcolors.ENDC)
+                break
+        # Handles X-Button exit
+        except:
+            if result == None:
+                print(bcolors.FAIL + "Exiting Loop1" + bcolors.ENDC)
+                break
 
         
     os._exit(1)
