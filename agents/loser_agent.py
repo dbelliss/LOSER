@@ -127,14 +127,27 @@ class LoserAgent(sc2.BotAI):
             # Way point for units to move to
             self.waypoint = None
 
+            # Predict enemy will be in the first possible position
+            self.predicted_enemy_position_num = -1
+
+            # Position to search for enemy untis
+            self.num_enemy_positions = -1
+
+            # Position the bot begins
+            self.start_location = None
+
+            # Easier way to access map information, must be loaded in after game loads
+            self.map_height = None
+            self.map_width = None
+
     '''
     Base on_step function
     Uses basic_build and performs actions based on the current strategy
     For now, strategies will change ever 100 steps
     Harass strategies are not implemented yet
     '''
-    async def on_step(self, iteration, strategy_num=0):
-        # self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
+    async def on_step(self, iteration, strategy_num=2):
+        # self.log("Step: %s Overlord: %s" % (str(iteration), str(self.units(OVERLORD).amount)))
         # self.log("Step: " + str(iteration))
 
         # TEMP: Until strategy is given by Q table
@@ -243,6 +256,17 @@ class LoserAgent(sc2.BotAI):
     async def perform_strategy(self, iteration, strategy_num):
         self.mainAgent.clean_strike_force()  # Clear dead units from strike force
 
+        if self.predicted_enemy_position_num == -1:
+            # Initializing things that are needed after game data is loaded
+
+            # Assume first position
+            self.predicted_enemy_position = 0
+            self.num_enemy_positions = len(self.mainAgent.enemy_start_locations)
+            self.start_location = self.mainAgent.bases.ready.random.position # Should only be 1 hatchery at this time
+            self.map_width = self.mainAgent.game_info.map_size[0]
+            self.map_height = self.mainAgent.game_info.map_size[1]
+
+
         # Make sure given strategy num is valid
         if Strategies.has_value(strategy_num):
             # Valid strategy num, convert int into enum value
@@ -304,7 +328,7 @@ class LoserAgent(sc2.BotAI):
     Do NOT recall ever
     '''
     async def heavy_attack(self, iteration):
-        await self.attack_with_percentage_of_army(1)
+        await self.attack_with_percentage_of_army(0, 0)
 
     '''
     Send all combat units (including the queen) to a known enemy position
@@ -312,74 +336,42 @@ class LoserAgent(sc2.BotAI):
     Must keep track of units being used because order of units in self.units constantly changes
     '''
     async def medium_attack(self, iteration):
-        await self.attack_with_percentage_of_army(.6)
+        await self.attack_with_percentage_of_army(.75, 15)
     '''
     Attack a known enemy position, but if you get attacked, retreat back to base
     '''
 
     async def light_attack(self, iteration):
-        await self.attack_with_percentage_of_army(.3)
+        await self.attack_with_percentage_of_army(.9, .3)
 
-
-    async def attack_with_percentage_of_army(self, percentage):
+    # If more than percentage_to_advance_group percent of strike force is
+    async def attack_with_percentage_of_army(self, percentage_to_advance_group, percentage_to_retreat_group):
         army = self.mainAgent.army
 
         if len(army) == 0:
             # No army to use, don't bother trying to attack
+            self.mainAgent.waypoint = self.mainAgent.game_info.map_center # Restart waypoint
             return
 
-        desired_strike_force_size = int(percentage * army.amount)
-        # Strategy just changed, need to take a strike_force
-        if self.mainAgent.strike_force is None:
-            self.mainAgent.strike_force = army.take(desired_strike_force_size)
-            pos = lambda: None  # https://stackoverflow.com/questions/19476816/creating-an-empty-object-in-python
-            
-            # Meet up with all units in the middle of the map
-            # Map size for quick access
-            map_width = self.mainAgent.game_info.map_size[0]
-            map_height = self.mainAgent.game_info.map_size[1]
-            pos.x = map_width / 2
-            pos.y = map_height / 2
-
-            position_to_search = Point2.from_proto(pos)
-            self.mainAgent.waypoint = self.waypoint = position_to_search
-
-        # If strike force should include more members (If a unit was built)
-        # Do not add more units if the entire army is already in strike force
-        if len(self.mainAgent.strike_force) < desired_strike_force_size and len(army) > len(self.mainAgent.strike_force):
-
-            self.mainAgent.strike_force += (army - self.mainAgent.strike_force).take(desired_strike_force_size - len(self.mainAgent.strike_force))
-
-
-        # By now we must have at least 1 offensive unit
-        unselected_army = army - self.mainAgent.strike_force
-
+        # Keep units together
         num_units_at_waypoint = 0
         # All strike force members attack to the waypoint
-        for unit_ref in self.mainAgent.strike_force:
-            # Need to reacquire unit from self.units to see that a command has been queued
-            id = unit_ref.tag
-            unit = self.mainAgent.units.find_by_tag(id)
+        for unit in self.army:
 
-            if unit is None:
-                # Unit died
-                self.mainAgent.strike_force.remove(unit_ref)
-                continue
-                
-            distance_from_waypoint = unit.position.to2.distance_to(self.waypoint)
-            if distance_from_waypoint < 10:
+            distance_from_waypoint = unit.position.to2.distance_to(self.mainAgent.waypoint)
+            if distance_from_waypoint < 15:
                 num_units_at_waypoint += 1
-            await self.mainAgent.do(unit.attack(self.waypoint))
+            await self.mainAgent.do(unit.attack(self.mainAgent.waypoint))
 
-        percentage_units_at_waypoint = num_units_at_waypoint / len(self.mainAgent.strike_force)
+        percentage_units_at_waypoint = num_units_at_waypoint / len(self.army)
         # If all units are close to the waypoint, pick a closer one
-        if percentage_units_at_waypoint > .75:
-            self.log("ADVANCING")
+        if percentage_units_at_waypoint > percentage_to_advance_group:
             target = self.mainAgent.select_target()
-            self.mainAgent.waypoint = self.waypoint.towards(target, 20)
-        # # Remaining offensive units just wait at their position
-        # for unit in unselected_army:
-        #     await self.do(unit.hold_position())
+            self.mainAgent.waypoint = self.mainAgent.waypoint.towards(target, 20)
+        elif percentage_units_at_waypoint < percentage_to_retreat_group:
+            # Move waypoint back
+            if (self.mainAgent.waypoint != self.start_location):
+                self.mainAgent.waypoint = self.mainAgent.waypoint.towards(self.start_location, 1)
 
 
     '''
@@ -402,8 +394,8 @@ class LoserAgent(sc2.BotAI):
         await self.scout_with_percentage_of_army(.5, True, True)
 
     async def scout_with_percentage_of_army(self, percentage, use_overlords, pull_back_if_damaged):
-        map_width = self.mainAgent.game_info.map_size[0]
-        map_height = self.mainAgent.game_info.map_size[1]
+        map_width = self.map_width
+        map_height = self.map_height
 
         army = self.mainAgent.army
 
@@ -552,6 +544,7 @@ class LoserAgent(sc2.BotAI):
             if self.mainAgent.units.find_by_tag(unit.tag) is None:
                 self.mainAgent.strike_force.remove(unit)
 
+
     '''
     Utilities
     '''
@@ -582,12 +575,11 @@ class LoserAgent(sc2.BotAI):
 
     '''
     From Dentosal's proxyrax build
-    Targets a random known enemy unit
-    If no known units, targets a random known building
-    If no known buildings and units, go towards te first possible enemy start position
+    Targets a random known enemy building
+    If no known buildings, go towards to a possible enemy start position
     '''
     def select_target(self):
-        target = self.mainAgent.known_enemy_structures
+        target = self.mainAgent.known_enemy_units
         if target.exists:
             return target.random.position
 
@@ -595,9 +587,22 @@ class LoserAgent(sc2.BotAI):
         if target.exists:
             return target.random.position
 
+        return self.enemy_start_locations[0]
 
-        # TODO: Explore other starting positions
-        return self.mainAgent.enemy_start_locations[0].position
+        # Code to explore more than one enemy starting position not needed because all maps are only 2 people
+        # Not tested
+
+        # # Explore other starting positions
+        # units_near_predicted_position = self.units.filter(lambda x: x.position.distance_to(
+        #     self.enemy_start_locations[self.predicted_enemy_position]) < 5)
+        # if len(units_near_predicted_position) > 0:
+        #     # There is a unit near the predicted position, but no visible structures or enemies
+        #     self.predicted_enemy_position = (self.predicted_enemy_position + 1)
+        #     # loop over starting positions if needed
+        #     if self.predicted_enemy_position >= self.num_enemy_positions:
+        #         self.predicted_enemy_position = 0
+        #
+        # return self.enemy_start_locations[self.predicted_enemy_position]
 
     @property
     def num_larva(self):
