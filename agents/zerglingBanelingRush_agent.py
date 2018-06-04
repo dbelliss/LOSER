@@ -1,7 +1,7 @@
 from loser_agent import *
 
 class ZerglingBanelingRushAgent(LoserAgent):
-    def __init__(self, is_logging = False):
+    def __init__(self, is_logging = False, is_printing_to_console = False, isMainAgent = False, fileName = ""):
         super().__init__()
 
         self.drone_counter = 0
@@ -19,19 +19,67 @@ class ZerglingBanelingRushAgent(LoserAgent):
         self.queen_started = False
         self.mboost_started = False
         self.baneling_nest_started = False
+        self.chooks_started = False
         self.attacking = False
 
         # For debugging
-        self.is_logging = is_logging
-        if self.is_logging:
+        self.is_logging = is_logging  # Setting this to true to write information to log files in the agents/logs directory
+        self.is_printing_to_console = is_printing_to_console  # Setting this to true causes all logs to be printed to the console
 
-            # Make logs directory if it doesn't exist
-            if not os.path.exists("./logs"):
-                os.mkdir("./logs")
-            self.log_file_name = "./logs/" + strftime("%Y-%m-%d %H:%M:%S", localtime()) + ".log"
-            self.log_file = open(self.log_file_name, "w+")  # Create log file based on the time
+        # Make logs directory if it doesn't exist
+        if not os.path.exists("./logs"):
+            os.mkdir("./logs")
+        self.log_file_name = "./logs/" + fileName + strftime("%Y-%m-%d %H%M%S", localtime()) + ".log"
+        self.log_file = open(self.log_file_name, "w+")  # Create log file based on the time
 
-    async def on_step(self, iteration):
+        # Constants
+        self.researched = 2  # If an upgrade has been research
+        self.is_researching = 1  # If an upgrade is being researched
+        self.not_researched = 0  # If an upgrade is not being researched and has not been researched
+
+        self.strike_force = None
+
+        # Previous strategy so you now when the strategy changes
+        self.prev_strategy = None
+
+        # True if strategy just changed in this iteration
+        self.did_strategy_change = False
+
+        # Way point for units to move to
+        self.waypoint = None
+
+        # Predict enemy will be in the first possible position
+        self.predicted_enemy_position_num = -1
+
+        # Position to search for enemy untis
+        self.num_enemy_positions = -1
+
+        # Position the bot begins
+        self.start_location = None
+
+        # Easier way to access map information, must be loaded in after game loads
+        self.map_height = None
+        self.map_width = None
+        ZerglingBanelingRushAgent.mainAgent = self
+
+    async def on_step(self, iteration, strategy_num=2):
+        # self.log("Step: %s Overlord: %s" % (str(iteration), str(self.units(OVERLORD).amount)))
+        # self.log("Step: " + str(iteration))
+
+        # TEMP: Until strategy is given by Q table
+        # strategy_num = (int)(iteration / 75) % 8
+
+        # Build lings, queen, overlords, drones, and meleeattack1
+        await self.basic_build(iteration)
+
+        # Perform actions based on given strategy
+        if strategy_num == -1:
+            # self.mainAgent.log("No given strategy")
+            pass
+        else:
+            await self.perform_strategy(iteration, strategy_num)
+
+    async def basic_build(self, iteration):
 
         hatchery = self.units(HATCHERY).ready.first
         larvae = self.units(LARVA)
@@ -171,6 +219,15 @@ class ZerglingBanelingRushAgent(LoserAgent):
                             break
 
         if self.units(BANELINGNEST).ready.exists:
+
+            if self.can_afford(RESEARCH_CENTRIFUGALHOOKS) and not self.chooks_started:
+                bn = self.units(BANELINGNEST).ready
+                if bn.exists and self.minerals >= 100:
+                    await self.do(bn.first(RESEARCH_CENTRIFUGALHOOKS))
+                    self.chooks_started = True
+                    print("Researched Centrifugal Hooks")
+                    print("Game Time: " + str(self.game_time))
+
             for zergling in self.units(ZERGLING).ready:
                 if self.can_afford(MORPHZERGLINGTOBANELING_BANELING) and larvae.exists and self.baneling_counter < self.zergling_counter / 2:
                     err = await self.do(zergling(MORPHZERGLINGTOBANELING_BANELING))
@@ -185,7 +242,7 @@ def main():
     # Start game with LoserAgent as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, ZerglingBanelingRushAgent(True)),
-        Computer(Race.Protoss, Difficulty.Easy)
+        Computer(Race.Protoss, Difficulty.Medium)
     ], realtime=False)
 
 if __name__ == '__main__':

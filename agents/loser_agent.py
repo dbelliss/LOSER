@@ -648,7 +648,8 @@ class LoserAgent(sc2.BotAI):
             self.cached_army = self.mainAgent.units.filter(
                 lambda x: x.name != "Drone" and x.name != "Overlord" and x.name != "Queen" and x.name != "CreepTumorQueen"\
                           and x.name != "Egg" and x.name != "Larva" and not x.is_structure and x.name != "CreepTumorBurrowed") \
-                            - self.mainAgent.units(LURKERMPBURROWED) - self.mainAgent.units(LURKERMPEGG)
+                            - self.mainAgent.units(LURKERMPBURROWED) - self.mainAgent.units(LURKERMPEGG) \
+                            - self.mainAgent.units(BANELINGCOCOON)
             return self.cached_army
 
     @property
