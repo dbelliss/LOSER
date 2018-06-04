@@ -144,6 +144,13 @@ class LoserAgent(sc2.BotAI):
 
             # Top left corner of the map for mutas
             self.map_corner = None
+
+            # Set to true after army is requested to prevent duplicate queries in the same iteration
+            # gets set to false in each perform_strategy call
+            self.is_army_cached = False;
+
+            # Saves army each iteration to prevent duplicate queries
+            self.cached_army = None
     '''
     Base on_step function
     Uses basic_build and performs actions based on the current strategy
@@ -271,7 +278,7 @@ class LoserAgent(sc2.BotAI):
     '''
     async def perform_strategy(self, iteration, strategy_num):
         self.mainAgent.clean_strike_force()  # Clear dead units from strike force
-
+        self.mainAgent.is_army_cached = False  # Must re obtain army data
         if self.mainAgent.predicted_enemy_position_num == -1:
             # Initializing things that are needed after game data is loaded
 
@@ -634,10 +641,15 @@ class LoserAgent(sc2.BotAI):
 
     @property
     def army(self):
-        return self.mainAgent.units.filter(
-            lambda x: x.name != "Drone" and x.name != "Overlord" and x.name != "Queen" and x.name != "CreepTumorQueen"\
-                      and x.name != "Egg" and x.name != "Larva" and not x.is_structure and x.name != "CreepTumorBurrowed") \
-                        - self.mainAgent.units(LURKERMPBURROWED) - self.mainAgent.units(LURKERMPEGG)
+        if self.mainAgent.is_army_cached:
+            return self.mainAgent.cached_army
+        else:
+            self.mainAgent.is_army_cached = True
+            self.cached_army = self.mainAgent.units.filter(
+                lambda x: x.name != "Drone" and x.name != "Overlord" and x.name != "Queen" and x.name != "CreepTumorQueen"\
+                          and x.name != "Egg" and x.name != "Larva" and not x.is_structure and x.name != "CreepTumorBurrowed") \
+                            - self.mainAgent.units(LURKERMPBURROWED) - self.mainAgent.units(LURKERMPEGG)
+            return self.cached_army
 
     @property
     def overlords(self):
