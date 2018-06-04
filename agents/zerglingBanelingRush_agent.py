@@ -143,20 +143,20 @@ class ZerglingBanelingRushAgent(LoserAgent):
                     await self.do(larvae.random.train(ZERGLING))
                     self.zergling_counter += 1
 
-        if self.zergling_counter >= 10:
-            if not self.attacking:
-                self.attacking = True
-                self.countdown = self.game_time
+        # if self.zergling_counter >= 10:
+        #     if not self.attacking:
+        #         self.attacking = True
+        #         self.countdown = self.game_time
+        #
+        #     for unit in self.units(ZERGLING) | self.units(BANELING):
+        #         await self.do(unit.attack(target.to2.towards(self.game_info.map_center, self.attack_distance)))
+        #
+        #     #if self.baneling_counter != 0:
+        #     #    for worker in self.workers:
+        #     #        await self.do(worker.attack(target.to2.towards(self.game_info.map_center, 30)))
 
-            for unit in self.units(ZERGLING) | self.units(BANELING):
-                await self.do(unit.attack(target.to2.towards(self.game_info.map_center, self.attack_distance)))
-
-            #if self.baneling_counter != 0:
-            #    for worker in self.workers:
-            #        await self.do(worker.attack(target.to2.towards(self.game_info.map_center, 30)))
-
-        if self.attacking:
-            self.attack_distance = 80 - (self.game_time - self.countdown)
+        # if self.attacking:
+        #     self.attack_distance = 80 - (self.game_time - self.countdown)
 
         if not self.baneling_nest_started:
             if self.can_afford(BANELINGNEST) and self.units(SPAWNINGPOOL).ready.exists:
