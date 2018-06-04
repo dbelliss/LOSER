@@ -158,7 +158,8 @@ class LoserAgent(sc2.BotAI):
 
         # Perform actions based on given strategy
         if strategy_num == -1:
-            self.mainAgent.log("No given strategy")
+            # self.mainAgent.log("No given strategy")
+            pass
         else:
             await self.perform_strategy(iteration, strategy_num)
 
@@ -256,15 +257,15 @@ class LoserAgent(sc2.BotAI):
     async def perform_strategy(self, iteration, strategy_num):
         self.mainAgent.clean_strike_force()  # Clear dead units from strike force
 
-        if self.predicted_enemy_position_num == -1:
+        if self.mainAgent.predicted_enemy_position_num == -1:
             # Initializing things that are needed after game data is loaded
 
             # Assume first position
-            self.predicted_enemy_position = 0
-            self.num_enemy_positions = len(self.mainAgent.enemy_start_locations)
-            self.start_location = self.mainAgent.bases.ready.random.position # Should only be 1 hatchery at this time
-            self.map_width = self.mainAgent.game_info.map_size[0]
-            self.map_height = self.mainAgent.game_info.map_size[1]
+            self.mainAgent.predicted_enemy_position = 0
+            self.mainAgent.num_enemy_positions = len(self.mainAgent.enemy_start_locations)
+            self.mainAgent.start_location = self.mainAgent.bases.ready.random.position # Should only be 1 hatchery at this time
+            self.mainAgent.map_width = self.mainAgent.game_info.map_size[0]
+            self.mainAgent.map_height = self.mainAgent.game_info.map_size[1]
 
 
         # Make sure given strategy num is valid
@@ -394,13 +395,13 @@ class LoserAgent(sc2.BotAI):
         await self.scout_with_percentage_of_army(.5, True, True)
 
     async def scout_with_percentage_of_army(self, percentage, use_overlords, pull_back_if_damaged):
-        map_width = self.map_width
-        map_height = self.map_height
+        map_width = self.mainAgent.map_width
+        map_height = self.mainAgent.map_height
 
-        army = self.mainAgent.army
+        army = self.army
 
         if use_overlords:
-            army += self.mainAgent.units(OVERLORD)
+            army += self.units(OVERLORD)
 
         desired_strike_force_size = int(percentage * army.amount)
         if self.mainAgent.strike_force is None:
@@ -505,33 +506,44 @@ class LoserAgent(sc2.BotAI):
     If harass units are attacked, move to the next base
     '''
     async def heavy_harass(self, iteration):
-        # If there are known enemy expansions, harass those
-
-        enemy_bases = self.get_known_enemy_bases()
-
-        if enemy_bases.amount > 0:
-            for unit in self.units(ZERGLING):
-                unit.attack(enemy_bases[0].position)
-
-
-    def get_known_enemy_bases(self):
-        # Get all enemy structures, then filter to only take townhall types
-        enemy_structures = self.known_enemy_structures
-        townhall_ids = [item for sublist in race_townhalls.values() for item in sublist]
-        return enemy_structures.filter(lambda x: x.type_id in townhall_ids)
+        self.harass()
 
     '''
     TODO
     '''
     async def medium_harass(self, iteration):
-        pass
+        self.harass()
 
     '''
     If attacked pull back for a set time
     Only use harass units if you have them
     '''
     async def light_harass(self, iteration):
-        pass
+        self.harass()
+
+    async def harass(self):
+        # If there are known enemy expansions, harass those
+        enemy_workers = self.known_enemy_units.filter(lambda x: x.name == "Drone" or x.name == "SCV" or x.name == "Probe")
+
+        # If workers are visible, attack them
+        if len(enemy_workers) > 0:
+            harass_target = enemy_workers.random.position
+        else:
+            # If no workers are visible, find a town hall to attack
+            enemy_bases = self.get_known_enemy_bases()
+            if len(enemy_bases) > 0:
+                harass_target = enemy_bases[random.randint(0, len(enemy_bases))]
+            else:
+                # if no town halls are known, go to the enemy start
+                harass_target = self.mainAgent.enemy_start_locations[0]
+
+        for unit in self.army:
+            if unit.health < unit.health_max:
+                # low on health so come back
+                await self.mainAgent.do(unit.move(self.mainAgent.bases.random))
+            else:
+                # still full health so keep attacking
+                await self.mainAgent.do(unit.attack(harass_target))
 
     '''
     Removes dead units from strike force
@@ -572,6 +584,12 @@ class LoserAgent(sc2.BotAI):
 
     def get_random_worker(self):
         return self.mainAgent.units(DRONE).random
+
+    def get_known_enemy_bases(self):
+        # Get all enemy structures, then filter to only take townhall types
+        enemy_structures = self.known_enemy_structures
+        townhall_ids = [item for sublist in race_townhalls.values() for item in sublist]
+        return enemy_structures.filter(lambda x: x.type_id in townhall_ids)
 
     '''
     From Dentosal's proxyrax build
