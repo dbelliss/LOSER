@@ -18,7 +18,7 @@ import sys
 from strategies import Strategies
 
 from sc2.position import Point2
-
+from sc2.data import race_townhalls
 
 class LoserAgent(sc2.BotAI):
     mainAgent = None
@@ -124,6 +124,33 @@ class LoserAgent(sc2.BotAI):
             self.did_strategy_change = False
             LoserAgent.mainAgent = self
 
+            # Way point for units to move to
+            self.waypoint = None
+
+            self.mutalisk_waypoint = None
+
+            # Predict enemy will be in the first possible position
+            self.predicted_enemy_position_num = -1
+
+            # Position to search for enemy untis
+            self.num_enemy_positions = -1
+
+            # Position the bot begins
+            self.start_location = None
+
+            # Easier way to access map information, must be loaded in after game loads
+            self.map_height = None
+            self.map_width = None
+
+            # Top left corner of the map for mutas
+            self.map_corner = None
+
+            # Set to true after army is requested to prevent duplicate queries in the same iteration
+            # gets set to false in each perform_strategy call
+            self.is_army_cached = False;
+
+            # Saves army each iteration to prevent duplicate queries
+            self.cached_army = None
     '''
     Base on_step function
     Uses basic_build and performs actions based on the current strategy
@@ -131,18 +158,19 @@ class LoserAgent(sc2.BotAI):
     Harass strategies are not implemented yet
     '''
     async def on_step(self, iteration, strategy_num=0):
-        # self.log("Step: %s Idle Workers: %s Overlord: %s" % (str(iteration), str(self.get_idle_workers), str(self.units(OVERLORD).amount)))
+        # self.log("Step: %s Overlord: %s" % (str(iteration), str(self.units(OVERLORD).amount)))
         # self.log("Step: " + str(iteration))
 
         # TEMP: Until strategy is given by Q table
-        strategy_num = (int)(iteration / 75) % 8
+        strategy_num = (int)(iteration / 75) % 12
 
         # Build lings, queen, overlords, drones, and meleeattack1
         await self.basic_build(iteration)
 
         # Perform actions based on given strategy
         if strategy_num == -1:
-            self.mainAgent.log("No given strategy")
+            # self.mainAgent.log("No given strategy")
+            pass
         else:
             await self.perform_strategy(iteration, strategy_num)
 
@@ -154,6 +182,7 @@ class LoserAgent(sc2.BotAI):
     Builds a few hydralisks
     '''
     async def basic_build(self, iteration):
+
         hatchery = self.mainAgent.bases.ready.random
         # Build overlords if close to reaching cap
         if self.mainAgent.supply_used > self.mainAgent.supply_cap - 4 and self.mainAgent.num_larva > 0 and self.mainAgent.can_afford(OVERLORD):
@@ -163,12 +192,16 @@ class LoserAgent(sc2.BotAI):
             if self.mainAgent.units(DRONE).amount < 20 and self.mainAgent.can_afford(DRONE) and self.mainAgent.units(LARVA).amount > 0 and self.mainAgent.supply_used < self.mainAgent.supply_cap:
                 await self.mainAgent.do(self.mainAgent.random_larva.train(DRONE))
 
+            if self.mainAgent.units(SPIRE).ready.exists and self.mainAgent.units(MUTALISK).amount < 20 and self.mainAgent.supply_used < self.mainAgent.supply_cap - 3 \
+                and self.mainAgent.can_afford(MUTALISK) and self.mainAgent.num_larva > 0:
+                await self.mainAgent.do(self.mainAgent.random_larva.train(MUTALISK))
+
             if self.mainAgent.units(HYDRALISKDEN).ready.exists and self.mainAgent.units(HYDRALISK).amount < 20 and self.mainAgent.supply_used < self.mainAgent.supply_cap - 3 \
                     and self.mainAgent.can_afford(HYDRALISK) and self.mainAgent.num_larva > 0:
                 await self.mainAgent.do(self.mainAgent.random_larva.train(HYDRALISK))
 
             # Build lings
-            if self.mainAgent.units(ZERGLING).amount < 100 and self.mainAgent.can_afford(ZERGLING) and self.mainAgent.num_larva > 0 and \
+            if self.mainAgent.units(ZERGLING).amount + self.mainAgent.already_pending(ZERGLING) < 5 and self.mainAgent.can_afford(ZERGLING) and self.mainAgent.num_larva > 0 and \
                     self.mainAgent.supply_used < self.mainAgent.supply_cap - 1 and self.mainAgent.units(SPAWNINGPOOL).ready.exists:
                 await self.mainAgent.do(self.mainAgent.random_larva.train(ZERGLING))
         # Build Spawning pool
@@ -176,7 +209,7 @@ class LoserAgent(sc2.BotAI):
             p = hatchery.position.towards(self.mainAgent.game_info.map_center, 3)
             await self.mainAgent.build(SPAWNINGPOOL, near=p)
 
-        if self.mainAgent.num_extractors_built < 1 and self.mainAgent.can_afford(EXTRACTOR):
+        if self.mainAgent.units(EXTRACTOR).amount < 2 and self.mainAgent.can_afford(EXTRACTOR) and self.mainAgent.already_pending(EXTRACTOR) < 2:
             self.mainAgent.num_extractors_built += 1
             drone = self.mainAgent.workers.random
             target = self.mainAgent.state.vespene_geyser.closest_to(drone.position)
@@ -187,14 +220,14 @@ class LoserAgent(sc2.BotAI):
             if extractor.assigned_harvesters < extractor.ideal_harvesters and self.mainAgent.workers.amount > 0:
                 await self.mainAgent.do(self.mainAgent.workers.random.gather(extractor))
 
-        # Build Spawning pool
-        if not self.mainAgent.units(EVOLUTIONCHAMBER).exists and self.mainAgent.can_afford(SPAWNINGPOOL):
-            p = hatchery.position.towards(self.mainAgent.game_info.map_center, 3)
-            await self.mainAgent.build(EVOLUTIONCHAMBER, near=p)
-        elif self.mainAgent.can_afford(RESEARCH_ZERGMELEEWEAPONSLEVEL1) and self.mainAgent.melee1 == 0 and self.mainAgent.units(EVOLUTIONCHAMBER).ready.exists:
-            # Get melee1 upgrade
-            self.mainAgent.melee1 = 1
-            await self.mainAgent.do(self.mainAgent.units(EVOLUTIONCHAMBER).first(RESEARCH_ZERGMELEEWEAPONSLEVEL1))
+        # # Build Evolution Chamber pool
+        # if not self.mainAgent.units(EVOLUTIONCHAMBER).exists and self.mainAgent.can_afford(SPAWNINGPOOL):
+        #     p = hatchery.position.towards(self.mainAgent.game_info.map_center, 3)
+        #     await self.mainAgent.build(EVOLUTIONCHAMBER, near=p)
+        # elif self.mainAgent.can_afford(RESEARCH_ZERGMELEEWEAPONSLEVEL1) and self.mainAgent.melee1 == 0 and self.mainAgent.units(EVOLUTIONCHAMBER).ready.exists:
+        #     # Get melee1 upgrade
+        #     self.mainAgent.melee1 = 1
+        #     await self.mainAgent.do(self.mainAgent.units(EVOLUTIONCHAMBER).first(RESEARCH_ZERGMELEEWEAPONSLEVEL1))
 
         # Build a queen if you haven't
         if self.mainAgent.num_queens_built < 1 and self.mainAgent.units(SPAWNINGPOOL).ready.exists and self.mainAgent.can_afford(QUEEN) and \
@@ -219,20 +252,24 @@ class LoserAgent(sc2.BotAI):
             if err:
                 self.mainAgent.num_lairs_built -= 1
 
-        # Build hydralisk den when possible
-        if not self.mainAgent.units(HYDRALISKDEN).exists and self.mainAgent.units(LAIR).amount > 0 and self.mainAgent.can_afford(HYDRALISKDEN) \
-                and self.mainAgent.num_hydralisks_built == 0:
+        # # Build hydralisk den when possible
+        # if not self.mainAgent.units(HYDRALISKDEN).exists and self.mainAgent.units(LAIR).amount > 0 and self.mainAgent.can_afford(HYDRALISKDEN) \
+        #         and self.mainAgent.num_hydralisks_built == 0:
+        #     p = hatchery.position.towards(self.mainAgent.game_info.map_center, 3)
+        #     self.mainAgent.num_hydralisks_built += 1
+        #     await self.mainAgent.build(HYDRALISKDEN, near=p)
+        #
+        # # Build lurker den when possible
+        # if self.mainAgent.num_lurkerdens_built == 0 and self.mainAgent.units(HYDRALISKDEN).ready.amount > 0 and \
+        #         self.mainAgent.can_afford(UPGRADETOLURKERDEN_LURKERDEN):
+        #     # await self.mainAgent.do(self.mainAgent.units(HYDRALISKDEN).first(UPGRADETOLURKERDEN_LURKERDEN ))
+        #     self.mainAgent.num_lurkerdens_built += 1
+        #     await self.mainAgent.do(self.mainAgent.units(HYDRALISKDEN).first(MORPH_LURKERDEN))
+
+        if not self.mainAgent.units(SPIRE).exists and self.mainAgent.units(LAIR).amount > 0 and self.mainAgent.can_afford(SPIRE) \
+            and not self.mainAgent.already_pending(SPIRE):
             p = hatchery.position.towards(self.mainAgent.game_info.map_center, 3)
-            self.mainAgent.num_hydralisks_built += 1
-            await self.mainAgent.build(HYDRALISKDEN, near=p)
-
-        # Build lurker den when possible
-        if self.mainAgent.num_lurkerdens_built == 0 and self.mainAgent.units(HYDRALISKDEN).ready.amount > 0 and \
-                self.mainAgent.can_afford(UPGRADETOLURKERDEN_LURKERDEN):
-            # await self.mainAgent.do(self.mainAgent.units(HYDRALISKDEN).first(UPGRADETOLURKERDEN_LURKERDEN ))
-            self.mainAgent.num_lurkerdens_built += 1
-            await self.mainAgent.do(self.mainAgent.units(HYDRALISKDEN).first(MORPH_LURKERDEN))
-
+            await self.mainAgent.build(SPIRE, near=p)
 
 
     '''
@@ -241,6 +278,23 @@ class LoserAgent(sc2.BotAI):
     '''
     async def perform_strategy(self, iteration, strategy_num):
         self.mainAgent.clean_strike_force()  # Clear dead units from strike force
+        self.mainAgent.is_army_cached = False  # Must re obtain army data
+        if self.mainAgent.predicted_enemy_position_num == -1:
+            # Initializing things that are needed after game data is loaded
+
+            # Assume first position
+            self.mainAgent.predicted_enemy_position = 0
+            self.mainAgent.num_enemy_positions = len(self.mainAgent.enemy_start_locations)
+            self.mainAgent.start_location = self.mainAgent.bases.ready.random.position # Should only be 1 hatchery at this time
+            self.mainAgent.map_width = self.mainAgent.game_info.map_size[0]
+            self.mainAgent.map_height = self.mainAgent.game_info.map_size[1]
+
+            # Get a point in the corner of the map
+            p = lambda: None  # https://stackoverflow.com/questions/19476816/creating-an-empty-object-in-python
+            p.x = self.mainAgent.game_info.map_center.x * 1.9
+            p.y = self.mainAgent.game_info.map_center.y * 1.9
+            self.mainAgent.map_corner = Point2.from_proto(p)
+
 
         # Make sure given strategy num is valid
         if Strategies.has_value(strategy_num):
@@ -303,7 +357,7 @@ class LoserAgent(sc2.BotAI):
     Do NOT recall ever
     '''
     async def heavy_attack(self, iteration):
-        await self.attack_with_percentage_of_army(1)
+        await self.attack_with_percentage_of_army(0, 0)
 
     '''
     Send all combat units (including the queen) to a known enemy position
@@ -311,46 +365,54 @@ class LoserAgent(sc2.BotAI):
     Must keep track of units being used because order of units in self.units constantly changes
     '''
     async def medium_attack(self, iteration):
-        await self.attack_with_percentage_of_army(.6)
+        await self.attack_with_percentage_of_army(.75, 15)
     '''
     Attack a known enemy position, but if you get attacked, retreat back to base
     '''
 
     async def light_attack(self, iteration):
-        await self.attack_with_percentage_of_army(.3)
+        await self.attack_with_percentage_of_army(.9, .3)
 
-
-    async def attack_with_percentage_of_army(self, percentage):
+    # If more than percentage_to_advance_group percent of strike force is
+    async def attack_with_percentage_of_army(self, percentage_to_advance_group, percentage_to_retreat_group):
         army = self.mainAgent.army
 
         if len(army) == 0:
             # No army to use, don't bother trying to attack
+            self.mainAgent.waypoint = self.mainAgent.game_info.map_center # Restart waypoint
             return
 
-        desired_strike_force_size = int(percentage * army.amount)
-        # Strategy just changed, need to take a strike_force
-        if self.mainAgent.strike_force is None:
-            self.mainAgent.strike_force = army.take(desired_strike_force_size)
+        # Move army to mainAgent's waypoint and attack things on the way
+        percentage_units_at_waypoint = \
+            await self.move_and_get_percent_units_at_waypoint(army, self.mainAgent.waypoint, True)
 
-        # If strike force should include more members (If a unit was built)
-        # Do not add more units if the entire army is already in strike force
-        if len(self.mainAgent.strike_force) < desired_strike_force_size and len(army) > len(self.mainAgent.strike_force):
+        # If all units are close to the waypoint, pick a closer one
+        if percentage_units_at_waypoint > percentage_to_advance_group:
+            target = self.mainAgent.select_target()
+            self.mainAgent.waypoint = self.mainAgent.waypoint.towards(target, 20)
+        elif percentage_units_at_waypoint < percentage_to_retreat_group:
+            # Move waypoint back
+            if (self.mainAgent.waypoint != self.start_location):
+                self.mainAgent.waypoint = self.mainAgent.waypoint.towards(self.start_location, 1)
 
-            self.mainAgent.strike_force += (army - self.mainAgent.strike_force).take(desired_strike_force_size - len(self.mainAgent.strike_force))
+
+    async def move_and_get_percent_units_at_waypoint(self, units, waypoint, should_attack):
+        # Keep units together
+        num_units_at_waypoint = 0
+        # All strike force members attack to the waypoint
+        for unit in units:
+            distance_from_waypoint = unit.position.to2.distance_to(waypoint)
+            if distance_from_waypoint < 15:
+                num_units_at_waypoint += 1
+
+            if should_attack:
+                await self.mainAgent.do(unit.attack(waypoint))
+            else:
+                await self.mainAgent.do(unit.move(waypoint))
 
 
-        # By now we must have at least 1 offensive unit
-        target = self.mainAgent.select_target()
-        unselected_army = army - self.mainAgent.strike_force
-
-        # All strike force members attack
-        for unit in self.mainAgent.strike_force:
-            await self.mainAgent.do(unit.attack(target))
-
-        # # Remaining offensive units just wait at their position
-        # for unit in unselected_army:
-        #     await self.do(unit.hold_position())
-
+        percentage_units_at_waypoint = num_units_at_waypoint / len(units)
+        return percentage_units_at_waypoint
 
     '''
     Send all military units out to different areas
@@ -372,13 +434,13 @@ class LoserAgent(sc2.BotAI):
         await self.scout_with_percentage_of_army(.5, True, True)
 
     async def scout_with_percentage_of_army(self, percentage, use_overlords, pull_back_if_damaged):
-        map_width = self.mainAgent.game_info.map_size[0]
-        map_height = self.mainAgent.game_info.map_size[1]
+        map_width = self.mainAgent.map_width
+        map_height = self.mainAgent.map_height
 
-        army = self.mainAgent.army
+        army = self.army
 
         if use_overlords:
-            army += self.mainAgent.units(OVERLORD)
+            army += self.units(OVERLORD)
 
         desired_strike_force_size = int(percentage * army.amount)
         if self.mainAgent.strike_force is None:
@@ -483,20 +545,83 @@ class LoserAgent(sc2.BotAI):
     If harass units are attacked, move to the next base
     '''
     async def heavy_harass(self, iteration):
-        pass
+        await self.harass(0)  # Die for the harass
 
     '''
     TODO
     '''
     async def medium_harass(self, iteration):
-        pass
+        await self.harass(.5)  # Return if damaged to half health
 
     '''
     If attacked pull back for a set time
     Only use harass units if you have them
     '''
     async def light_harass(self, iteration):
-        pass
+        await self.harass(1)  # Return immediately if damaged
+
+    async def harass(self, percent_health_to_return):
+
+
+        if self.mainAgent.did_strategy_change:
+            self.mainAgent.mutalisk_waypoint = self.mainAgent.map_corner
+
+        if self.army.amount == 0:
+            # Nothing to harass with
+            return
+
+        harass_target = self.get_harass_target()
+
+
+        mutalisks = self.mainAgent.units(MUTALISK)
+
+        # Mutalisk harass is different from other things
+        if mutalisks.amount > 0:
+            if self.mainAgent.mutalisk_waypoint == self.enemy_start_locations[0]:
+                # Second phase of muta harass, when at the enemy base, begin attacking
+                for muta in mutalisks:
+                    if muta.position.to2.distance_to(self.mainAgent.mutalisk_waypoint):
+                        # Begin attacking workers or anything nearby
+                        await self.mainAgent.do(muta.attack(harass_target))
+                    else:
+                        # Move to whre the workers are without attacking
+                        await self.mainAgent.do(muta.move(self.mainAgent.mutalisk_waypoint))
+            else:
+                # Phase 1: Gather the mutas
+                # Move mutalisks to mutalisk waypoint, and do not attack anything else on the way
+                percentage_mutas_at_waypoint = await \
+                    self.move_and_get_percent_units_at_waypoint(mutalisks, self.mainAgent.mutalisk_waypoint, False)
+                if percentage_mutas_at_waypoint > .75:
+                    self.mainAgent.mutalisk_waypoint = self.enemy_start_locations[0]  # Send them off to the enemy base
+
+        for unit in self.army - self.units(MUTALISK):
+            if unit.health < unit.health_max * percent_health_to_return:
+                # low on health so come back
+                await self.mainAgent.do(unit.move(self.mainAgent.bases.random))
+            else:
+                # still full health so keep attacking
+                await self.mainAgent.do(unit.attack(harass_target))
+
+    # Finds a target to harass
+    # Will first choose workers, and if there are no workers, then to go a known base, and in no known bases,
+    # Go to enemy main base
+    def get_harass_target(self):
+        # If there are known enemy expansions, harass those
+        enemy_workers = self.known_enemy_units.filter(lambda x: x.name == "Drone" or x.name == "SCV" or x.name == "Probe")
+
+        # If workers are visible, attack them
+        if len(enemy_workers) > 0:
+            harass_target = enemy_workers.random.position
+        else:
+            # If no workers are visible, find a town hall to attack
+            enemy_bases = self.get_known_enemy_bases()
+            if len(enemy_bases) > 0:
+                harass_target = enemy_bases[random.randint(0, len(enemy_bases) - 1)]
+            else:
+                # if no town halls are known, go to the enemy start
+                harass_target = self.mainAgent.enemy_start_locations[0]
+
+        return harass_target
 
     '''
     Removes dead units from strike force
@@ -509,14 +634,22 @@ class LoserAgent(sc2.BotAI):
             if self.mainAgent.units.find_by_tag(unit.tag) is None:
                 self.mainAgent.strike_force.remove(unit)
 
+
     '''
     Utilities
     '''
 
     @property
     def army(self):
-        return self.mainAgent.units - self.mainAgent.units(DRONE) - self.mainAgent.units(OVERLORD) - self.mainAgent.units(LARVA) - self.mainAgent.units(EGG) \
-               - self.mainAgent.units(QUEEN) - self.mainAgent.buildings - self.mainAgent.units(LURKERMPBURROWED)
+        if self.mainAgent.is_army_cached:
+            return self.mainAgent.cached_army
+        else:
+            self.mainAgent.is_army_cached = True
+            self.cached_army = self.mainAgent.units.filter(
+                lambda x: x.name != "Drone" and x.name != "Overlord" and x.name != "Queen" and x.name != "CreepTumorQueen"\
+                          and x.name != "Egg" and x.name != "Larva" and not x.is_structure and x.name != "CreepTumorBurrowed") \
+                            - self.mainAgent.units(LURKERMPBURROWED) - self.mainAgent.units(LURKERMPEGG)
+            return self.cached_army
 
     @property
     def overlords(self):
@@ -524,27 +657,28 @@ class LoserAgent(sc2.BotAI):
 
     @property
     def buildings(self):
-        return self.mainAgent.units(HATCHERY) + self.mainAgent.units(LAIR) + self.mainAgent.units(HIVE) + self.mainAgent.units(EXTRACTOR) + self.mainAgent.units(SPAWNINGPOOL) \
-               + self.mainAgent.units(ROACHWARREN) + self.mainAgent.units(CREEPTUMOR) + self.mainAgent.units(EVOLUTIONCHAMBER) + self.mainAgent.units(HYDRALISKDEN) \
-               + self.mainAgent.units(SPIRE) + self.mainAgent.units(GREATERSPIRE) + self.mainAgent.units(ULTRALISKCAVERN) + self.mainAgent.units(INFESTATIONPIT) \
-               + self.mainAgent.units(NYDUSNETWORK) + self.mainAgent.units(BANELINGNEST) + self.mainAgent.units(SPINECRAWLER) + self.mainAgent.units(SPORECRAWLER) \
-                + self.mainAgent.units(LURKERDEN) + self.mainAgent.units(LURKERDENMP)
+        return self.mainAgent.units.filter(lambda x: x.is_structure) + self.mainAgent.units(SPINECRAWLER) + self.mainAgent.units(SPORECRAWLER)
 
     @property
     def bases(self):
-        return self.mainAgent.units(HATCHERY) | self.mainAgent.units(LAIR) | self.mainAgent.units(HIVE)
+        return self.mainAgent.units.filter(lambda x: x.name == "Hatchery" or x.name == "Lair" or x.name == "Hive")
 
     def get_random_worker(self):
         return self.mainAgent.units(DRONE).random
 
+    def get_known_enemy_bases(self):
+        # Get all enemy structures, then filter to only take townhall types
+        enemy_structures = self.known_enemy_structures
+        townhall_ids = [item for sublist in race_townhalls.values() for item in sublist]
+        return enemy_structures.filter(lambda x: x.type_id in townhall_ids)
+
     '''
     From Dentosal's proxyrax build
-    Targets a random known enemy unit
-    If no known units, targets a random known building
-    If no known buildings and units, go towards te first possible enemy start position
+    Targets a random known enemy building
+    If no known buildings, go towards to a possible enemy start position
     '''
     def select_target(self):
-        target = self.mainAgent.known_enemy_structures
+        target = self.mainAgent.known_enemy_units
         if target.exists:
             return target.random.position
 
@@ -552,9 +686,22 @@ class LoserAgent(sc2.BotAI):
         if target.exists:
             return target.random.position
 
+        return self.enemy_start_locations[0]
 
-        # TODO: Explore other starting positions
-        return self.mainAgent.enemy_start_locations[0].position
+        # Code to explore more than one enemy starting position not needed because all maps are only 2 people
+        # Not tested
+
+        # # Explore other starting positions
+        # units_near_predicted_position = self.units.filter(lambda x: x.position.distance_to(
+        #     self.enemy_start_locations[self.predicted_enemy_position]) < 5)
+        # if len(units_near_predicted_position) > 0:
+        #     # There is a unit near the predicted position, but no visible structures or enemies
+        #     self.predicted_enemy_position = (self.predicted_enemy_position + 1)
+        #     # loop over starting positions if needed
+        #     if self.predicted_enemy_position >= self.num_enemy_positions:
+        #         self.predicted_enemy_position = 0
+        #
+        # return self.enemy_start_locations[self.predicted_enemy_position]
 
     @property
     def num_larva(self):
