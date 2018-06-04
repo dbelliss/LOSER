@@ -202,6 +202,9 @@ class SafeRoachAgent(LoserAgent):
 
         if self.base_build_order_complete is True:
 
+            # add grooved spines, evo chamber, zerg misile weapons, just alter if statement for roaches,
+            # biggest mineral consumer
+
             if self.units(ROACHWARREN).ready.exists and self.built_gr is False and self.can_afford(RESEARCH_GLIALREGENERATION) and self.units(LAIR).ready.exists:
                 err = await self.do(self.units(ROACHWARREN).random(RESEARCH_GLIALREGENERATION))
                 if not err:
