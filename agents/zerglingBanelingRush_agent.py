@@ -60,7 +60,7 @@ class ZerglingBanelingRushAgent(LoserAgent):
                 print("Game Time: " + str(self.game_time))
 
         if self.game_time > 100:
-            if self.overlord_counter == 1 and larvae.exists and self.can_afford(OVERLORD):
+            if self.overlord_counter <= 1 and larvae.exists and self.can_afford(OVERLORD):
                 await self.do(larvae.random.train(OVERLORD))
                 self.overlord_counter += 1
                 print ("Overlord " + str(self.overlord_counter))
@@ -139,11 +139,11 @@ class ZerglingBanelingRushAgent(LoserAgent):
 
         if self.units(SPAWNINGPOOL).ready.exists:
             if larvae.exists and self.can_afford(ZERGLING) and self.supply_left >= 1:
-                if self.zergling_counter < 5 and self.queen_started:
+                if self.queen_started:
                     await self.do(larvae.random.train(ZERGLING))
                     self.zergling_counter += 1
 
-        if self.zergling_counter >= 5:
+        if self.zergling_counter >= 10:
             if not self.attacking:
                 self.attacking = True
                 self.countdown = self.game_time
