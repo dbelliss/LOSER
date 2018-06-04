@@ -169,6 +169,8 @@ class SafeRoachAgent(LoserAgent):
         if iteration % 100 == 0:
             print("NUMWORKERS ", self.workers.amount)
             print("NUMROACHES ", self.units(ROACH).amount)
+            print("NUMHYDRAS"  , self.units(HYDRALISK).amount)
+            print("NUMCRAWLERS", self.units(SPORECRAWLER).amount+self.units(SPINECRAWLER).amount)
 
         # code from zerg_rush example, literally just last resort sends all units to attack if hatchery is destroyed
         if not self.units(HATCHERY).ready.exists:
@@ -200,15 +202,8 @@ class SafeRoachAgent(LoserAgent):
 
         if self.base_build_order_complete is True:
 
-            if self.built_lair is False:
-                print("ATTEMPTING TO BUILD LAIR")
-                lairupgrade = self.units(HATCHERY).find_by_tag(self.OG_hatchery)
-                if lairupgrade is not None:
-                    if self.can_afford(UPGRADETOLAIR_LAIR) and self.minerals > 150:
-                        err = await self.do(lairupgrade((UPGRADETOLAIR_LAIR)))
-                    if not err:
-                        print("SUCCESSFUL LAIR UPGRADE")
-                        self.built_lair = True
+            # add grooved spines, evo chamber, zerg misile weapons, just alter if statement for roaches,
+            # biggest mineral consumer
 
             if self.units(ROACHWARREN).ready.exists and self.built_gr is False and self.can_afford(RESEARCH_GLIALREGENERATION) and self.units(LAIR).ready.exists:
                 err = await self.do(self.units(ROACHWARREN).random(RESEARCH_GLIALREGENERATION))
@@ -216,12 +211,14 @@ class SafeRoachAgent(LoserAgent):
                     print("BUILT GLIALRECONSTITUTION")
                     self.built_gr = True
 
-            if self.units(LAIR).ready.exists:
+            if self.units(LAIR).ready.exists and self.units(ROACHWARREN).ready.exists:
                 if self.built_hd is False and self.can_afford(HYDRALISKDEN):
-                    err = await self.do(self.build(HYDRALISKDEN, near=self.units(ROACHWARREN)))
-                    if not err:
-                        print("SUCCESSFULLY BUILT HYDRALISK DEN")
-                        self.built_hd = True
+                    for d in range(4, 10):
+                        if self.can_afford(HYDRALISKDEN):
+                            err = await self.build(HYDRALISKDEN, near=self.units(LAIR).ready.first.position.to2.towards(self.game_info.map_center, d))
+                            if not err:
+                                print("SUCCESSFULLY BUILT HYDRALISK DEN")
+                                self.built_hd = True
 
             if larvae.amount > self.units(HATCHERY).ready.amount * 4 and self.minerals > 700 and self.supply_left > 2:
                 if self.can_afford(ROACH):
@@ -240,8 +237,9 @@ class SafeRoachAgent(LoserAgent):
 
             # autobuilds extractors for hatcheries lacking them when there are enough minerals
             # if self.minerals > 500 and (self.extractors_built < self.hatcheries_built*2 or self.extractors_built > self.units(EXTRACTOR).amount):
-            if self.minerals > 500 and (self.extractors_built < self.hatcheries_built*2 or
-                                        self.extractors_built > self.units(EXTRACTOR).amount) and not self.already_pending(EXTRACTOR):
+            if (self.minerals > 500 and (self.extractors_built < self.hatcheries_built*2 or
+                                        self.extractors_built > self.units(EXTRACTOR).amount)) or\
+                    (self.minerals > 50 and self.extractors_built < 3) and not self.already_pending(EXTRACTOR):
                 print("Entered postbuild gas build with", self.extractors_built," extractors built and ", self.units(EXTRACTOR).amount, "extractors existing")
                 targets = self.state.vespene_geyser.closer_than(20.0, hatchery)
                 for vg in targets:
@@ -250,10 +248,11 @@ class SafeRoachAgent(LoserAgent):
                         break
 
                     if not self.units(EXTRACTOR).closer_than(1.0, vg).exists:
-                        err = await self.do(drone.build(EXTRACTOR, vg))
-                        if not err:
-                            print("BUILT POSTBUILD EXTRACTOR")
-                            self.extractors_built += 1
+                        if self.can_afford(EXTRACTOR):
+                            err = await self.do(drone.build(EXTRACTOR, vg))
+                            if not err:
+                                print("BUILT POSTBUILD EXTRACTOR")
+                                self.extractors_built += 1
 
             if self.supply_left < 4 and self.already_pending(OVERLORD) < 3 and self.supply_cap < 200:
                 if self.can_afford(OVERLORD) and larvae.exists:
@@ -292,8 +291,6 @@ class SafeRoachAgent(LoserAgent):
             #     self.drone_gapnumcounter = 0
             #     self.done_gap_closing = False
 
-
-
             # queen replenishing code, similar to above drone code
             
             if self.units(QUEEN).amount + self.already_pending(QUEEN) < 6:
@@ -311,19 +308,27 @@ class SafeRoachAgent(LoserAgent):
             if self.units(QUEEN).amount >= 6:
                 self.queen_gapnumcounter = 0
 
-            if self.can_afford(HYDRALISK) and (self.units(HYDRALISK).amount + self.already_pending(HYDRALISK) < 10 or
-                                        self.workers.amount > 40) and larvae.exists and self.units(HYDRALISKDEN).ready.exists and\
+            if self.can_afford(HYDRALISK) and self.units(HYDRALISK).amount + self.already_pending(HYDRALISK) < 10 and \
+                    larvae.exists and self.units(HYDRALISKDEN).ready.exists and\
                     self.supply_left > 2:
                 print("MAKING HYDRALISK ", self.hydralisks_built)
                 self.hydralisks_built += 1
                 await self.do(larvae.random.train(HYDRALISK))
 
-            if self.can_afford(ROACH) and (self.units(ROACH).amount + self.already_pending(ROACH) < 15 or
-                                        self.workers.amount > 40) and larvae.exists and self.units(ROACHWARREN).ready.exists and\
-                    self.supply_left > 2:
-                print("MAKING ROACH ", self.roaches_built)
-                self.roaches_built += 1
-                await self.do(larvae.random.train(ROACH))
+            if self.units(HYDRALISKDEN).ready.exists:
+                if self.can_afford(ROACH) and (self.units(ROACH).amount + self.already_pending(ROACH) < 15 or
+                                            self.workers.amount > 40) and larvae.exists and self.units(ROACHWARREN).ready.exists and\
+                        self.supply_left > 2:
+                    print("MAKING ROACH ", self.roaches_built)
+                    self.roaches_built += 1
+                    await self.do(larvae.random.train(ROACH))
+            elif self.vespene > 150:
+                if self.can_afford(ROACH) and (self.units(ROACH).amount + self.already_pending(ROACH) < 15 or
+                                            self.workers.amount > 40) and larvae.exists and self.units(ROACHWARREN).ready.exists and\
+                        self.supply_left > 2:
+                    print("MAKING ROACH ", self.roaches_built)
+                    self.roaches_built += 1
+                    await self.do(larvae.random.train(ROACH))
 
         # swap if statements for priority, add minimum drone count of hatcheries * 16
         # if enemy known units includes air, change build? add more spore crawlers?
@@ -588,17 +593,28 @@ class SafeRoachAgent(LoserAgent):
                                 self.sporecrawlers_built += 1
                                 print("built sporecrawler ", self.sporecrawlers_built)
 
-            if self.sporecrawlers_built >=2 and self.can_afford(ROACHWARREN) and self.built_rwarren is False:
-                err = await self.build(ROACHWARREN, near=self.units(HATCHERY).find_by_tag(self.OG_hatchery))
-                print("ATTEMPTING TO BUILD ROACH WARREN")
-                if not err:
-                    self.built_rwarren = True
-                    print("BUILT ROACH WARREN")
+            if self.sporecrawlers_built >=2 and self.built_rwarren is False and self.can_afford(ROACHWARREN):
+                for d in range(4,10):
+                    if self.can_afford(ROACHWARREN):
+                        err = await self.build(ROACHWARREN, near=self.units(HATCHERY).find_by_tag(self.OG_hatchery).position.to2.towards(self.game_info.map_center, d))
+                        print("ATTEMPTING TO BUILD ROACH WARREN")
+                        if not err:
+                            self.built_rwarren = True
+                            print("BUILT ROACH WARREN")
 
+            if self.units(ROACHWARREN).ready.exists and self.can_afford(UPGRADETOLAIR_LAIR) and self.built_lair is False:
+                print("ATTEMPTING TO BUILD LAIR")
+                lairupgrade = self.units(HATCHERY).find_by_tag(self.OG_hatchery)
+                if lairupgrade is not None:
+                    if self.can_afford(UPGRADETOLAIR_LAIR) and self.minerals > 150:
+                        err = await self.do(lairupgrade((UPGRADETOLAIR_LAIR)))
+                        if not err:
+                            print("SUCCESSFUL LAIR UPGRADE")
+                            self.built_lair = True
 
         # checks if base build order requirements are done, allows for expansion of hatcheries at-will
         # currently runs as a test
-        if self.built_rwarren is True and self.base_build_order_complete is False:
+        if self.built_lair is True and self.base_build_order_complete is False:
             self.base_build_order_complete = True
             print("DONE WITH BASE BUILD ORDER")
 
@@ -607,7 +623,7 @@ def main():
     # Start game as SafeRoach as the Bot, and begin logging
     sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
         Bot(Race.Zerg, SafeRoachAgent(True)),
-        Computer(Race.Protoss, Difficulty.Medium)
+        Computer(Race.Terran, Difficulty.Medium)
     ], realtime=False)
 
 
