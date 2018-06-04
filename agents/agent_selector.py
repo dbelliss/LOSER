@@ -65,7 +65,6 @@ class AgentSelector(LoserAgent):
         self.last_known_enemies = None
 
         ''' Variables initialized by setupInputs() when game starts'''
-        # Terran and Zerg = 87, Protoss = 82
         self.nInputs = 0
         self.prevInputs = []
         self.agentNN = None
@@ -105,11 +104,33 @@ class AgentSelector(LoserAgent):
         self.strategiesIndex = 0
         print(bcolors.OKGREEN + "###RandomStrategyIndex: {}".format(self.strategiesIndex) + bcolors.ENDC)
 
+    def total_worker_count(self):
+        return self.mainAgent.workers.amount
+
+    def idle_worker_count(self):
+        return self.mainAgent.workers.idle.amount
+
     def vespene_worker_count(self):
         workers = 0
         for extractor in self.mainAgent.units(EXTRACTOR):
             workers = workers + extractor.assigned_harvesters
         return workers
+
+    def mineral_worker_count(self):
+        workers = 0
+        bases = self.mainAgent.units(HATCHERY) + self.mainAgent.units(LAIR) + self.mainAgent.units(HIVE)
+        for base in bases:
+            workers += base.assigned_harvesters
+            if self.total_worker_count() < (workers + self.vespene_worker_count()):
+                workers -= self.mainAgent.units(EXTRACTOR).closer_than(15, base).amount
+        return workers
+
+    '''
+    Gathers the remaining workers that are not gathering a resource or is idle
+    ex: workers that are moving, scouting, attacking, or building
+    '''
+    def remaining_worker_count(self):
+        return self.total_worker_count() - self.idle_worker_count() - self.mineral_worker_count() - self.vespene_worker_count()
 
     '''
     Establishes the unit lists that are used for unit breakdowns for each race. These lists
@@ -204,11 +225,12 @@ class AgentSelector(LoserAgent):
     def create_inputs(self):
         # Create ownded unit inputs
         owned = self.unit_breakdown(True, 2)
-        idle_workers = self.mainAgent.workers.idle.amount
+        idle_workers = self.idle_worker_count()
         vespene_workers = self.vespene_worker_count()
-        # estimation of how many are mining minerals
-        mineral_workers = owned[1] - idle_workers - vespene_workers
+        mineral_workers = self.mineral_worker_count()
+        remaining_workers = self.remaining_worker_count()
         # Inserts worker breakdown by total drone count
+        owned.insert(2, remaining_workers)
         owned.insert(2, vespene_workers)
         owned.insert(2, mineral_workers)
         owned.insert(2, idle_workers)
@@ -247,8 +269,9 @@ class AgentSelector(LoserAgent):
             # print(bcolors.OKGREEN + "Length of inputs: %s" % str(len(self.create_inputs())))
             # print(bcolors.OKBLUE + "Inputs: {} ".format(self.create_inputs()))
             # print(bcolors.OKGREEN + "Ownded units breakdown: %s" % str(self.owned_units()))
-            print(bcolors.OKBLUE + "Enemies: {} ".format(self.last_known_enemies))
-            print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
+            # print(bcolors.OKBLUE + "Enemies: {} ".format(self.last_known_enemies))
+            print(bcolors.OKBLUE + "Total: {}, Idle: {}, Mineral: {}, Vespene: {}, Other: {}".format(self.total_worker_count(), self.idle_worker_count(), self.mineral_worker_count(), self.vespene_worker_count(), self.remaining_worker_count()))
+            # print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
             self.learn()
             self.selectNewAgentsAndStrategies()
 
@@ -334,7 +357,7 @@ class AgentSelector(LoserAgent):
         #appends all the input lists together, also puts them into lists of lists for the NN
         # ie [1, 2, 3] + [4, 5] => [[1, 2, 3, 4 ,5]]
         agentInputList = [curInputs + curAgent + curStrategy]
-        print(bcolors.WARNING + "###agentInputList: {}".format(agentInputList) + bcolors.ENDC)
+        # print(bcolors.WARNING + "###agentInputList: {}".format(agentInputList) + bcolors.ENDC)
         self.log("Predicting agentNN with inputs: {0}".format(str(agentInputList)))
 
         nextAgent = self.agentNN.predict(agentInputList)[0].tolist() #extract first row from returned numpy array
@@ -416,7 +439,7 @@ def checkNParseArgs(args):
         elif args.difficulty.lower() == "cheatinsane":
             difficulty = Difficulty.CheatInsane
         else:
-            raise ValueError("""Unknown difficulty: '{}'. Must be 
+            raise ValueError("""Unknown difficulty: '{}'. Must be
             VeryEasy, Easy, Medium, MediumHard, Hard, Harder, VeryHard, CheatVision, CheatMoney, CheatInsane""".format(args.difficulty))
 
     # Number
@@ -451,7 +474,7 @@ def main():
             enemyRace = random.choice(enemyRaceList)
         else:
             enemyRace = race
-        
+
         print(bcolors.OKGREEN + "###Opponent is {}: {}".format(enemyRace, enemyRaceList.index(enemyRace)) + bcolors.ENDC)
 
         # Start game with AgentSelector as the Bot, and begin logging
@@ -472,7 +495,7 @@ def main():
                 print(bcolors.FAIL + "Exiting Loop - Normal" + bcolors.ENDC)
                 break
 
-        
+
     os._exit(1)
 
 if __name__ == '__main__':
