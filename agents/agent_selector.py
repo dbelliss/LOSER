@@ -76,6 +76,25 @@ class AgentSelector(LoserAgent):
         self.lastFitness = 0
 
     def fitness(self):
+        # TODO: Implement calculations, w alias for weights
+        """Agent Selector Fitness"""
+        # Worker Calculation
+        ## (mineral_workers + vespene_workers) * w - idle_workers * w
+
+        # Army Calculation
+        ## army_size * w
+
+        # Building Calculation
+        ## defensive_structures * w + tech_buildings * w + hatcheries * w + military_buildings * w
+
+        # Resource Calculation - drop off score if hoarding too much resource
+        ## log(mineral_count + vespene_count)
+
+        """Enemy Fitness"""
+        # Calculate last_known
+        ## army_size * w + tech_buildings * w + military_buildings * w + defensive_buildings * w + num_bases * w
+
+        # return agent_selector_fit - enemy_fit
         return (self.lastFitness + .5) % 1
 
     def chooseRandomBuild(self):
