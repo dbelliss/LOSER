@@ -136,7 +136,7 @@ class LoserAgent(sc2.BotAI):
             self.num_enemy_positions = -1
 
             # Position the bot begins
-            self.start_location = None
+            self.mainAgent.start_location = None
 
             # Easier way to access map information, must be loaded in after game loads
             self.map_height = None
@@ -158,7 +158,7 @@ class LoserAgent(sc2.BotAI):
     Harass strategies are not implemented yet
     '''
     async def on_step(self, iteration, strategy_num=0):
-        # self.log("Step: %s Overlord: %s" % (str(iteration), str(self.units(OVERLORD).amount)))
+        # self.log("Step: %s Overlord: %s" % (str(iteration), str(self.mainAgent.units(OVERLORD).amount)))
         # self.log("Step: " + str(iteration))
 
         # TEMP: Until strategy is given by Q table
@@ -361,7 +361,7 @@ class LoserAgent(sc2.BotAI):
 
     '''
     Send all combat units (including the queen) to a known enemy position
-    Recall after a certain amount of units die 
+    Recall after a certain amount of units die
     Must keep track of units being used because order of units in self.units constantly changes
     '''
     async def medium_attack(self, iteration):
@@ -392,8 +392,8 @@ class LoserAgent(sc2.BotAI):
             self.mainAgent.waypoint = self.mainAgent.waypoint.towards(target, 20)
         elif percentage_units_at_waypoint < percentage_to_retreat_group:
             # Move waypoint back
-            if (self.mainAgent.waypoint != self.start_location):
-                self.mainAgent.waypoint = self.mainAgent.waypoint.towards(self.start_location, 1)
+            if (self.mainAgent.waypoint != self.mainAgent.start_location):
+                self.mainAgent.waypoint = self.mainAgent.waypoint.towards(self.mainAgent.start_location, 1)
 
 
     async def move_and_get_percent_units_at_waypoint(self, units, waypoint, should_attack):
@@ -440,7 +440,7 @@ class LoserAgent(sc2.BotAI):
         army = self.army
 
         if use_overlords:
-            army += self.units(OVERLORD)
+            army += self.mainAgent.units(OVERLORD)
 
         desired_strike_force_size = int(percentage * army.amount)
         if self.mainAgent.strike_force is None:
@@ -452,7 +452,7 @@ class LoserAgent(sc2.BotAI):
             self.mainAgent.strike_force += (army - self.mainAgent.strike_force).take(desired_strike_force_size - len(self.mainAgent.strike_force))
 
         for unit_ref in self.mainAgent.strike_force:
-            # Need to reacquire unit from self.units to see that a command has been queued
+            # Need to reacquire unit from self.mainAgent.units to see that a command has been queued
             id = unit_ref.tag
             unit = self.mainAgent.units.find_by_tag(id)
 
@@ -475,7 +475,7 @@ class LoserAgent(sc2.BotAI):
     '''
     Complete recall back to main base
     Build lots of static defenses
-    Build lots of lurkers 
+    Build lots of lurkers
     '''
     async def heavy_defense(self, iteration):
         # Build 5 spinecrawlers and sporecrawlers, and 10 lurkers
@@ -577,7 +577,7 @@ class LoserAgent(sc2.BotAI):
 
         # Mutalisk harass is different from other things
         if mutalisks.amount > 0:
-            if self.mainAgent.mutalisk_waypoint == self.enemy_start_locations[0]:
+            if self.mainAgent.mutalisk_waypoint == self.mainAgent.enemy_start_locations[0]:
                 # Second phase of muta harass, when at the enemy base, begin attacking
                 for muta in mutalisks:
                     if muta.position.to2.distance_to(self.mainAgent.mutalisk_waypoint):
@@ -592,9 +592,9 @@ class LoserAgent(sc2.BotAI):
                 percentage_mutas_at_waypoint = await \
                     self.move_and_get_percent_units_at_waypoint(mutalisks, self.mainAgent.mutalisk_waypoint, False)
                 if percentage_mutas_at_waypoint > .75:
-                    self.mainAgent.mutalisk_waypoint = self.enemy_start_locations[0]  # Send them off to the enemy base
+                    self.mainAgent.mutalisk_waypoint = self.mainAgent.enemy_start_locations[0]  # Send them off to the enemy base
 
-        for unit in self.army - self.units(MUTALISK):
+        for unit in self.army - self.mainAgent.units(MUTALISK):
             if unit.health < unit.health_max * percent_health_to_return:
                 # low on health so come back
                 await self.mainAgent.do(unit.move(self.mainAgent.bases.random))
@@ -607,7 +607,7 @@ class LoserAgent(sc2.BotAI):
     # Go to enemy main base
     def get_harass_target(self):
         # If there are known enemy expansions, harass those
-        enemy_workers = self.known_enemy_units.filter(lambda x: x.name == "Drone" or x.name == "SCV" or x.name == "Probe")
+        enemy_workers = self.mainAgent.known_enemy_units.filter(lambda x: x.name == "Drone" or x.name == "SCV" or x.name == "Probe")
 
         # If workers are visible, attack them
         if len(enemy_workers) > 0:
@@ -668,7 +668,7 @@ class LoserAgent(sc2.BotAI):
 
     def get_known_enemy_bases(self):
         # Get all enemy structures, then filter to only take townhall types
-        enemy_structures = self.known_enemy_structures
+        enemy_structures = self.mainAgent.known_enemy_structures
         townhall_ids = [item for sublist in race_townhalls.values() for item in sublist]
         return enemy_structures.filter(lambda x: x.type_id in townhall_ids)
 
@@ -686,13 +686,13 @@ class LoserAgent(sc2.BotAI):
         if target.exists:
             return target.random.position
 
-        return self.enemy_start_locations[0]
+        return self.mainAgent.enemy_start_locations[0]
 
         # Code to explore more than one enemy starting position not needed because all maps are only 2 people
         # Not tested
 
         # # Explore other starting positions
-        # units_near_predicted_position = self.units.filter(lambda x: x.position.distance_to(
+        # units_near_predicted_position = self.mainAgent.units.filter(lambda x: x.position.distance_to(
         #     self.enemy_start_locations[self.predicted_enemy_position]) < 5)
         # if len(units_near_predicted_position) > 0:
         #     # There is a unit near the predicted position, but no visible structures or enemies
