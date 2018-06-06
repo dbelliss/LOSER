@@ -60,7 +60,7 @@ class ZerglingBanelingRushAgent(LoserAgent):
         # Easier way to access map information, must be loaded in after game loads
         self.map_height = None
         self.map_width = None
-        ZerglingBanelingRushAgent.mainAgent = self
+        #ZerglingBanelingRushAgent.mainAgent = self
 
     async def on_step(self, iteration, strategy_num=2):
         # self.log("Step: %s Overlord: %s" % (str(iteration), str(self.units(OVERLORD).amount)))
@@ -81,114 +81,114 @@ class ZerglingBanelingRushAgent(LoserAgent):
 
     async def basic_build(self, iteration):
 
-        hatchery = self.units(HATCHERY).ready.first
-        larvae = self.units(LARVA)
-        target = self.known_enemy_structures.random_or(self.enemy_start_locations[0]).position
+        hatchery = self.mainAgent.units(HATCHERY).ready.first
+        larvae = self.mainAgent.units(LARVA)
+        target = self.mainAgent.known_enemy_structures.random_or(self.mainAgent.enemy_start_locations[0]).position
 
         if iteration == 0:
-            await self.do(larvae.random.train(DRONE))
+            await self.mainAgent.do(larvae.random.train(DRONE))
             self.drone_counter += 1
             print("Drone " + str(self.drone_counter))
 
-        if self.game_time > 75 and self.workers.exists:
-            for extractor in self.units(EXTRACTOR):
-                if extractor.assigned_harvesters < extractor.ideal_harvesters and self.workers.exists:
-                    await self.do(self.workers.random.gather(extractor))
+        if self.game_time > 75 and self.mainAgent.workers.exists:
+            for extractor in self.mainAgent.units(EXTRACTOR):
+                if extractor.assigned_harvesters < extractor.ideal_harvesters and self.mainAgent.workers.exists:
+                    await self.mainAgent.do(self.mainAgent.workers.random.gather(extractor))
 
-        if self.overlord_counter == 0 and larvae.exists and self.can_afford(OVERLORD):
-            await self.do(larvae.random.train(OVERLORD))
+        if self.overlord_counter == 0 and larvae.exists and self.mainAgent.can_afford(OVERLORD):
+            await self.mainAgent.do(larvae.random.train(OVERLORD))
             self.overlord_counter += 1
             print ("Overlord " + str(self.overlord_counter))
 
         if self.overlord_counter ==  1:
-            if self.can_afford(DRONE) and larvae.exists and self.supply_left > 0:
-                await self.do(larvae.random.train(DRONE))
+            if self.mainAgent.can_afford(DRONE) and larvae.exists and self.mainAgent.supply_left > 0:
+                await self.mainAgent.do(larvae.random.train(DRONE))
                 self.drone_counter += 1
                 print("Drone " + str(self.drone_counter))
                 print("Game Time: " + str(self.game_time))
 
         if self.game_time > 100:
-            if self.overlord_counter <= 1 and larvae.exists and self.can_afford(OVERLORD):
-                await self.do(larvae.random.train(OVERLORD))
+            if self.overlord_counter <= 1 and larvae.exists and self.mainAgent.can_afford(OVERLORD):
+                await self.mainAgent.do(larvae.random.train(OVERLORD))
                 self.overlord_counter += 1
                 print ("Overlord " + str(self.overlord_counter))
-            elif self.game_time > 110 and self.overlord_counter == 2 and larvae.exists and self.can_afford(OVERLORD):
-                await self.do(larvae.random.train(OVERLORD))
+            elif self.game_time > 110 and self.overlord_counter == 2 and larvae.exists and self.mainAgent.can_afford(OVERLORD):
+                await self.mainAgent.do(larvae.random.train(OVERLORD))
                 self.overlord_counter += 1
                 print ("Overlord " + str(self.overlord_counter))
-            elif self.supply_left <= 2 and larvae.exists and self.can_afford(OVERLORD):
-                await self.do(larvae.random.train(OVERLORD))
+            elif self.mainAgent.supply_left <= 2 and larvae.exists and self.mainAgent.can_afford(OVERLORD):
+                await self.mainAgent.do(larvae.random.train(OVERLORD))
                 self.overlord_counter += 1
                 print("Overlord " + str(self.overlord_counter))
                 print("Game Time: " + str(self.game_time))
 
         if self.game_time > 50 and not self.moved_worker_to_expand:
-            pos = await self.get_next_expansion()
-            err = await self.do(self.workers.closest_to(pos).move(pos))
+            pos = await self.mainAgent.get_next_expansion()
+            err = await self.mainAgent.do(self.mainAgent.workers.closest_to(pos).move(pos))
             if not err:
                 self.moved_worker_to_expand = True
                 print("Worker moved to expansion point")
                 print("Game Time: " + str(self.game_time))
 
-        if self.game_time > 60 and self.moved_worker_to_expand and not self.hatchery_started and self.can_afford(HATCHERY):
-            pos = await self.get_next_expansion()
-            drone = self.workers.closest_to(pos)
-            err = await self.build(HATCHERY, near=pos, max_distance=20, unit=drone)
+        if self.game_time > 60 and self.moved_worker_to_expand and not self.hatchery_started and self.mainAgent.can_afford(HATCHERY):
+            pos = await self.mainAgent.get_next_expansion()
+            drone = self.mainAgent.workers.closest_to(pos)
+            err = await self.mainAgent.build(HATCHERY, near=pos, max_distance=20, unit=drone)
             if not err:
                 self.hatchery_started = True
                 print("Hatchery Started")
                 print("Game Time: " + str(self.game_time))
 
         if not self.extractor_started and not self.attacking:
-            if self.can_afford(EXTRACTOR) and self.workers.exists:
-                drone = self.workers.random
-                target = self.state.vespene_geyser.closest_to(drone.position)
-                err = await self.do(drone.build(EXTRACTOR, target))
+            if self.mainAgent.can_afford(EXTRACTOR) and self.mainAgent.workers.exists:
+                drone = self.mainAgent.workers.random
+                target = self.mainAgent.state.vespene_geyser.closest_to(drone.position)
+                err = await self.mainAgent.do(drone.build(EXTRACTOR, target))
                 if not err:
                     self.extractor_started = True
                     print("Extractor Started")
                     print("Game Time: " + str(self.game_time))
 
         elif not self.spawning_pool_started:
-            if self.can_afford(SPAWNINGPOOL):
+            if self.mainAgent.can_afford(SPAWNINGPOOL):
                 for d in range(4, 15):
-                    pos = hatchery.position.to2.towards(self.game_info.map_center, d)
-                    if await self.can_place(SPAWNINGPOOL, pos):
-                        drone = self.workers.closest_to(pos)
-                        err = await self.do(drone.build(SPAWNINGPOOL, pos))
+                    pos = hatchery.position.to2.towards(self.mainAgent.game_info.map_center, d)
+                    if await self.mainAgent.can_place(SPAWNINGPOOL, pos):
+                        drone = self.mainAgent.workers.closest_to(pos)
+                        err = await self.mainAgent.do(drone.build(SPAWNINGPOOL, pos))
                         if not err:
                             self.spawning_pool_started = True
                             print("Spawning pool started")
                             break
 
-        elif not self.queen_started and self.units(SPAWNINGPOOL).ready.exists:
-            if self.can_afford(QUEEN):
-                err = await self.do(hatchery.train(QUEEN))
+        elif not self.queen_started and self.mainAgent.units(SPAWNINGPOOL).ready.exists:
+            if self.mainAgent.can_afford(QUEEN):
+                err = await self.mainAgent.do(hatchery.train(QUEEN))
                 if not err:
                     self.queen_started = True
                     print("Queen Started")
                     print("Game Time: " + str(self.game_time))
 
-        for queen in self.units(QUEEN).idle:
-            abilities = await self.get_available_abilities(queen)
+        for queen in self.mainAgent.units(QUEEN).idle:
+            abilities = await self.mainAgent.get_available_abilities(queen)
             if AbilityId.EFFECT_INJECTLARVA in abilities:
-                err = await self.do(queen(EFFECT_INJECTLARVA, hatchery))
+                err = await self.mainAgent.do(queen(EFFECT_INJECTLARVA, hatchery))
                 if not err:
                     print("Larva Injected")
                     print("Game Time: " + str(self.game_time))
 
-        if self.can_afford(RESEARCH_ZERGLINGMETABOLICBOOST) and not self.mboost_started:
-            sp = self.units(SPAWNINGPOOL).ready
-            if sp.exists and self.minerals >= 100:
-                await self.do(sp.first(RESEARCH_ZERGLINGMETABOLICBOOST))
+        if self.mainAgent.can_afford(RESEARCH_ZERGLINGMETABOLICBOOST) and not self.mboost_started:
+            sp = self.mainAgent.units(SPAWNINGPOOL).ready
+            if sp.exists and self.mainAgent.minerals >= 100:
+                await self.mainAgent.do(sp.first(RESEARCH_ZERGLINGMETABOLICBOOST))
                 self.mboost_started = True
                 print("Researched Metabolic Boost")
                 print("Game Time: " + str(self.game_time))
 
-        if self.units(SPAWNINGPOOL).ready.exists:
-            if larvae.exists and self.can_afford(ZERGLING) and self.supply_left >= 1:
+        if self.mainAgent.units(SPAWNINGPOOL).ready.exists:
+            if larvae.exists and self.mainAgent.can_afford(ZERGLING) and self.mainAgent.supply_left >= 1:
                 if self.queen_started:
-                    await self.do(larvae.random.train(ZERGLING))
+                    await self.mainAgent.do(larvae.random.train(ZERGLING))
                     self.zergling_counter += 1
 
         # if self.zergling_counter >= 10:
@@ -207,30 +207,30 @@ class ZerglingBanelingRushAgent(LoserAgent):
         #     self.attack_distance = 80 - (self.game_time - self.countdown)
 
         if not self.baneling_nest_started:
-            if self.can_afford(BANELINGNEST) and self.units(SPAWNINGPOOL).ready.exists:
+            if self.mainAgent.can_afford(BANELINGNEST) and self.mainAgent.units(SPAWNINGPOOL).ready.exists:
                 for d in range(4, 15):
-                    pos = hatchery.position.to2.towards(self.game_info.map_center, d)
-                    if await self.can_place(BANELINGNEST, pos):
-                        drone = self.workers.closest_to(pos)
-                        err = await self.do(drone.build(BANELINGNEST, pos))
+                    pos = hatchery.position.to2.towards(self.mainAgent.game_info.map_center, d)
+                    if await self.mainAgent.can_place(BANELINGNEST, pos):
+                        drone = self.mainAgent.workers.closest_to(pos)
+                        err = await self.mainAgent.do(drone.build(BANELINGNEST, pos))
                         if not err:
                             self.baneling_nest_started = True
                             print("Baneling nest started")
                             break
 
-        if self.units(BANELINGNEST).ready.exists:
+        if self.mainAgent.units(BANELINGNEST).ready.exists:
 
-            if self.can_afford(RESEARCH_CENTRIFUGALHOOKS) and not self.chooks_started:
-                bn = self.units(BANELINGNEST).ready
-                if bn.exists and self.minerals >= 100:
-                    await self.do(bn.first(RESEARCH_CENTRIFUGALHOOKS))
+            if self.mainAgent.can_afford(RESEARCH_CENTRIFUGALHOOKS) and not self.chooks_started:
+                bn = self.mainAgent.units(BANELINGNEST).ready
+                if bn.exists and self.mainAgent.minerals >= 100:
+                    await self.mainAgent.do(bn.first(RESEARCH_CENTRIFUGALHOOKS))
                     self.chooks_started = True
                     print("Researched Centrifugal Hooks")
                     print("Game Time: " + str(self.game_time))
 
-            for zergling in self.units(ZERGLING).ready:
-                if self.can_afford(MORPHZERGLINGTOBANELING_BANELING) and larvae.exists and self.baneling_counter < self.zergling_counter / 2:
-                    err = await self.do(zergling(MORPHZERGLINGTOBANELING_BANELING))
+            for zergling in self.mainAgent.units(ZERGLING).ready:
+                if self.mainAgent.can_afford(MORPHZERGLINGTOBANELING_BANELING) and larvae.exists and self.baneling_counter < self.zergling_counter / 2:
+                    err = await self.mainAgent.do(zergling(MORPHZERGLINGTOBANELING_BANELING))
                     if not err:
                         self.baneling_counter += 1
                         print("Morphed baneling")
