@@ -65,7 +65,6 @@ class AgentSelector(LoserAgent):
         self.last_known_enemies = None
 
         ''' Variables initialized by setupInputs() when game starts'''
-        # Terran and Zerg = 87, Protoss = 82
         self.nInputs = 0
         self.prevInputs = []
         self.agentNN = None
@@ -75,9 +74,6 @@ class AgentSelector(LoserAgent):
         self.prevStrategy = 0
         self.lastFitness = 0
 
-    def fitness(self):
-        return (self.lastFitness + .5) % 1
-
     def chooseRandomBuild(self):
         self.curAgentIndex = 0
         print(bcolors.OKGREEN + "###RandomBuildIndex: {}".format(self.agents[self.curAgentIndex]) + bcolors.ENDC)
@@ -86,11 +82,36 @@ class AgentSelector(LoserAgent):
         self.strategiesIndex = 0
         print(bcolors.OKGREEN + "###RandomStrategyIndex: {}".format(self.strategiesIndex) + bcolors.ENDC)
 
+    def total_worker_count(self):
+        return self.mainAgent.workers.amount
+
+    def idle_worker_count(self):
+        return self.mainAgent.workers.idle.amount
+
     def vespene_worker_count(self):
         workers = 0
         for extractor in self.mainAgent.units(EXTRACTOR):
             workers = workers + extractor.assigned_harvesters
         return workers
+
+    def mineral_worker_count(self):
+        workers = 0
+        bases = self.mainAgent.units(HATCHERY) + self.mainAgent.units(LAIR) + self.mainAgent.units(HIVE)
+        for base in bases:
+            workers += base.assigned_harvesters
+        if self.total_worker_count() < (workers + self.vespene_worker_count()):
+            workers -= self.mainAgent.units(EXTRACTOR).amount
+        return workers
+
+    '''
+    Gathers the remaining workers that are not gathering a resource or is idle
+    ex: workers that are moving, scouting, attacking, or building
+    '''
+    def remaining_worker_count(self):
+        remainder = self.total_worker_count() - self.idle_worker_count() - self.mineral_worker_count() - self.vespene_worker_count()
+        if remainder < 0:
+            remainder = 0
+        return remainder
 
     '''
     Establishes the unit lists that are used for unit breakdowns for each race. These lists
@@ -99,7 +120,6 @@ class AgentSelector(LoserAgent):
     '''
     # TODO Should mules, auto-turrets, and point defense drones be counted in inputs? Does MarineStimpack, MauraderLifeBoost and upgrades in general ever show?
     # TODO How should nydus worms/networks be dealt with?
-    # 1 = Terran 2 = Zerg 3 = Protoss
     def unit_setter(self, player_race):
         if player_race == 1:
             unit_names = [
@@ -107,15 +127,32 @@ class AgentSelector(LoserAgent):
                 'AutoTurret', 'Viking', 'Medivac', 'Liberator', 'Raven', 'Banshee', 'Battlecruiser', 'PointDefenseDrone', 'CommandCenter',
                 'PlanetaryFortress', 'OrbitalCommand', 'SupplyDepot', 'Refinery', 'Barracks', 'EngineeringBay', 'Bunker', 'SensorTower',
                 'MissileTurret', 'Factory', 'GhostAcademy', 'Starport', 'Armory', 'FusionCore', 'CommandCenterFlying', 'OrbitalCommandFlying',
-                'BarracksFlying', 'FactoryFlying', 'StarportFlying', 'rest'
+                'BarracksFlying', 'FactoryFlying', 'StarportFlying', 'Hellion', 'TechLab', 'rest'
             ]
             special_units = {
-                'SiegeTankSieged': 'SiegeTank', 'WidowMineBurrowed': 'WidowMine', 'VikingFighter': 'Viking', 'VikingAssault': 'Viking', 'BansheeCloak': 'Banshee', 'CommandCenterFlying': 'CommandCenter',
-                'CommandCenterReactor': 'CommandCenter', 'OrbitalCommandFlying': 'OrbitalCommand', 'SupplyDepotDrop': 'SupplyDepot', 'SupplyDepotLowered': 'SupplyDepot', 'BarracksFlying': 'Barracks',
-                'BarracksReactor': 'Barracks', 'BarracksTechLab': 'Barracks', 'BarracksTechReactor': 'Barracks', 'FactoryFlying': 'Factory', 'FactoryTechLab': 'Factory', 'FactoryReactor': 'Factory',
-                'FactoryTechReactor': 'Factory', 'StarportFlying': 'Starport', 'StarportTechLab': 'Starport', 'StarportTechReactor': 'Starport', 'StarportReactor': 'Starport'
+                'SiegeTankSieged': 'SiegeTank', 'WidowMineBurrowed': 'WidowMine', 'VikingFighter': 'Viking', 'VikingAssault': 'Viking', 'BansheeCloak': 'Banshee',
+                'CommandCenterReactor': 'CommandCenter', 'SupplyDepotDrop': 'SupplyDepot', 'SupplyDepotLowered': 'SupplyDepot',
+                'BarracksReactor': 'Barracks', 'BarracksTechLab': 'Barracks', 'BarracksTechReactor': 'Barracks', 'FactoryTechLab': 'Factory', 'FactoryReactor': 'Factory',
+                'FactoryTechReactor': 'Factory', 'StarportTechLab': 'Starport', 'StarportTechReactor': 'Starport', 'StarportReactor': 'Starport'
             }
-            ignored_units = ['KD8Charge']
+            ignored_units = ['KD8Charge', 'MULE']
+            # Building fitness breakdown
+            defensive_buildings = {'Bunker': 0, 'MissileTurret': 0, 'PlanetaryFortress': 0}
+            production_buildings = {'Barracks': 0, 'BarracksFlying': 0, 'BarracksReactor': 0, 'BarracksTechLab': 0, 'BarracksTechReactor': 0}
+            upgrade_buildings = {'EngineeringBay': 0, 'Armory': 0}
+            technology_buildings = {'EngineeringBay': 0, 'Armory': 0, 'GhostAcademy': 0, 'FusionCore': 0}
+            remaining_basic_buildings = {'CommandCenter': 0, 'SupplyDepot': 0, 'Refinery': 0, 'SensorTower': 0, 'SupplyDepotDrop': 0, 'SupplyDepotLowered': 0}
+            remaining_advanced_buildings = {'PlanetaryFortress': 0, 'Factory': 0, 'Starport': 0, 'FactoryTechLab': 0, 'FactoryReactor': 0, 'FactoryTechReactor': 0, 'StarportTechLab': 0, 'StarportTechReactor': 0, 'StarportReactor': 0, 'TechLab': 0}
+            other_buildings = {'OrbitalCommand': 0, 'OrbitalCommandFlying': 0}
+            # Army fitness breakdown
+            # TODO figure out better breakdown for army fitness
+            army = [
+                'Marine', 'Marauder', 'Reaper', 'Ghost', 'HellionTank', 'Hellbat', 'SiegeTank', 'Cyclone', 'WidowMine', 'Thor',
+                'AutoTurret', 'Viking', 'Medivac', 'Liberator', 'Raven', 'Banshee', 'Battlecruiser', 'PointDefenseDrone', 'SiegeTankSieged'
+                'WidowMineBurrowed', 'VikingFighter', 'VikingAssault', 'BansheeCloak'
+            ]
+            workers = {'SCV': 0}
+            fitness_ignored = ['KD8Charge', 'MULE']
         elif player_race == 2:
             unit_names = [
                 'Cocoon', 'Drone', 'Queen', 'Zergling', 'Baneling', 'Roach', 'Ravager', 'Hydralisk', 'Lurker', 'Infestor', 'SwarmHostMP', 'Ultralisk',
@@ -124,13 +161,31 @@ class AgentSelector(LoserAgent):
                 'HydraliskDen', 'LurkerDenMP', 'InfestationPit', 'Spire', 'Hive', 'GreaterSpire', 'UltraliskCavern', 'rest'
             ]
             special_units = {
-                'RavagerCocoon': 'Cocoon', 'BanelingCocoon': 'Cocoon', 'OverlordCocoon': 'Cocoon', 'BroodLordCocoon': 'Cocoon', 'DroneBurrowed': 'Drone', 'QueenBurrowed': 'Queen',
+                'RavagerCocoon': 'Cocoon', 'BanelingCocoon': 'Cocoon', 'OverlordCocoon': 'Cocoon', 'BroodLordCocoon': 'Cocoon', 'TransportOverlordCocoon': 'Cocoon', 'DroneBurrowed': 'Drone', 'QueenBurrowed': 'Queen',
                 'ZerglingBurrowed': 'Zergling', 'BanelingBurrowed': 'Baneling', 'RoachBurrowed': 'Roach', 'RavagerBurrowed': 'Ravager', 'HydraliskBurrowed': 'Hydralisk', 'LurkerMPBurrowed': 'Lurker', 'LurkerMP': 'Lurker',
                 'InfestorBurrowed': 'Infestor', 'SwarmHostBurrowedMP': 'SwarmHostMP', 'UltraliskBurrowed': 'Ultralisk', 'LocustMPFlying': 'Locust', 'ChangelingMarine': 'Changeling', 'ChangelingZealot': 'Changeling',
                 'ChangelingZergling': 'Changeling', 'InfestorTerranBurrowed': 'InfestorTerran', 'OverlordTransport': 'Overlord', 'OverseerSiegeMode': 'Overseer', 'SpineCrawlerUprooted': 'SpineCrawler',
                 'SporeCrawlerUprooted': 'SporeCrawler', 'CreepTumorBurrowed': 'CreepTumor'
             }
             ignored_units = ['Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg']
+            # building lists for fitness
+            defensive_buildings = {'SpineCrawler': 0, 'SporeCrawler': 0} #TODO what do we do with the uprooted ones
+            production_buildings = {' ': 0}
+            upgrade_buildings = {'EvolutionChamber': 0, 'Spire': 0}
+            technology_buildings = {'SpawningPool': 0, 'RoachWarren': 0, 'BanelingNest': 0, 'HydraliskDen': 0, 'LurkerDenMP': 0, 'Spire': 0, 'GreaterSpire': 0, 'UltraliskCavern': 0}
+            remaining_basic_buildings = {'Hatchery': 0, 'Extractor': 0, 'CreepTumor': 0, 'Overlord': 0, 'OverlordTransport': 0, 'CreepTumorBurrowed': 0}
+            remaining_advanced_buildings = {'Lair': 0,'InfestationPit': 0, 'Overseer': 0, 'OverseerSiegeMode': 0}
+            other_buildings = {'Hive': 0}
+            # army lists for Fitness
+            # TODO figure out better breakdown for army fitness
+            army = [
+                'Queen', 'Zergling', 'Baneling', 'Roach', 'Ravager', 'Hydralisk', 'Lurker', 'Infestor', 'SwarmHostMP', 'Ultralisk',
+                'LocustMP', 'Broodling', 'BroodlingEscort', 'Changeling', 'InfestorTerran', 'Overlord', 'Overseer', 'Mutalisk', 'Corruptor', 'BroodLord', 'Viper',
+                'QueenBurrowed', 'ZerglingBurrowed', 'BanelingBurrowed', 'RoachBurrowed', 'RavagerBurrowed', 'HydraliskBurrowed', 'LurkerMPBurrowed', 'LurkerMP',
+                'InfestorBurrowed', 'SwarmHostBurrowedMP', 'UltraliskBurrowed', 'LocustMPFlying', 'ChangelingMarine', 'ChangelingZealot', 'ChangelingZergling', 'InfestorTerranBurrowed'
+            ]
+            workers = {'Drone': 0, 'DroneBurrowed': 0}
+            fitness_ignored = ['Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg', 'Cocoon', 'RavagerCocoon', 'BanelingCocoon', 'OverlordCocoon', 'BroodLordCocoon', 'TransportOverlordCocoon']
         else:
             unit_names = [
                 'Probe', 'Zealot', 'Stalker', 'Sentry', 'Adept', 'HighTemplar', 'DarkTemplar', 'Immortal', 'Colossus', 'Interceptor'
@@ -143,14 +198,34 @@ class AgentSelector(LoserAgent):
                 'ImmortalBarrier': 'Immortal', 'ObserverSiegeMode': 'Observer', 'PylonOvercharged': 'Pylon'
             }
             ignored_units = [' ']
+            # Building fitness breakdown
+            defensive_buildings = {'PhotonCannon': 0}
+            production_buildings = {'Gateway': 0, 'RoboticsFacility': 0, 'Stargate': 0}
+            upgrade_buildings = {'Forge': 0, 'CyberneticsCore': 0}
+            technology_buildings = {'Forge': 0, 'CyberneticsCore': 0, 'TwilightCouncil': 0, 'RoboticsBay': 0, 'FleetBeacon': 0, 'TemplarArchive': 0, 'DarkShrine': 0}
+            remaining_basic_buildings = {'Nexus': 0, 'Pylon': 0, 'PylonOvercharged': 0, 'Assimilator': 0}
+            remaining_advanced_buildings = {'WarpGate': 0}
+            other_buildings = {' ': 0}
+            # Army fitness breakdown
+            # TODO figure out better breakdown for army fitness
+            army = [
+                'Zealot', 'Stalker', 'Sentry', 'Adept', 'HighTemplar', 'DarkTemplar', 'Immortal', 'Colossus', 'Interceptor'
+                'Disruptor', 'Archon', 'Observer', 'WarpPrism', 'Phoenix', 'VoidRay', 'Oracle', 'Carrier', 'Tempest',
+                'MothershipCore', 'Mothership'
+            ]
+            workers = {'Probe': 0}
+            fitness_ignored = [' ']
         unit_breakdown = {key: 0 for key in unit_names}
-        return unit_breakdown, special_units, ignored_units
+        army_breakdown = {key: 0 for key in army}
+        return unit_breakdown, special_units, ignored_units, defensive_buildings, production_buildings, upgrade_buildings, technology_buildings, remaining_basic_buildings, \
+            remaining_advanced_buildings, other_buildings, army_breakdown, workers, fitness_ignored
 
     '''
     Creates the actual counts of units known at the time for either self or enemy.
     '''
     def unit_breakdown(self, owned, player_race):
-        unit_breakdown, special_units, ignored_units = self.unit_setter(player_race)
+        unit_breakdown, special_units, ignored_units, defensive_buildings, production_buildings, upgrade_buildings, technology_buildings, remaining_basic_buildings, \
+            remaining_advanced_buildings, other_buildings, army_breakdown, workers, fitness_ignored = self.unit_setter(player_race)
         if owned:
             player = self.mainAgent.units
         else:
@@ -173,6 +248,7 @@ class AgentSelector(LoserAgent):
                     unit_breakdown[special_units[unit.name]] += 1
                 except KeyError:
                     self.log("Names not covered: {0}".format(str(unit.name)))
+                    self.log("Known enemy list: {}".format(str(self.mainAgent.known_enemy_units)))
                     unit_breakdown['rest'] += 1
         # return unit_breakdown -> only use for debugging if you want to see what the values look like
         return [unit_breakdown[key] for key in unit_breakdown]
@@ -185,11 +261,12 @@ class AgentSelector(LoserAgent):
     def create_inputs(self):
         # Create ownded unit inputs
         owned = self.unit_breakdown(True, 2)
-        idle_workers = self.mainAgent.workers.idle.amount
+        idle_workers = self.idle_worker_count()
         vespene_workers = self.vespene_worker_count()
-        # estimation of how many are mining minerals
-        mineral_workers = owned[1] - idle_workers - vespene_workers
+        mineral_workers = self.mineral_worker_count()
+        remaining_workers = self.remaining_worker_count()
         # Inserts worker breakdown by total drone count
+        owned.insert(2, remaining_workers)
         owned.insert(2, vespene_workers)
         owned.insert(2, mineral_workers)
         owned.insert(2, idle_workers)
@@ -203,6 +280,62 @@ class AgentSelector(LoserAgent):
         normalized_enemy = [unit / 200 for unit in enemy]
         inputs = normalized_owned + normalized_enemy
         return inputs
+
+    def fitness(self):
+        # TODO: Implement calculations, w alias for weights
+        """Agent Selector Fitness"""
+        self_fitness = sum(self.fitness_breakdown(True, 2)) - self.idle_worker_count()
+
+        # Resource Calculation - drop off score if hoarding too much resource
+        ## log(mineral_count + vespene_count)
+
+        """Enemy Fitness"""
+        enemy_fitness = sum(self.fitness_breakdown(False, self.mainAgent.game_info.player_races[2]))
+
+        return self_fitness - enemy_fitness
+
+    def fitness_breakdown(self, owned, player_race):
+        unit_breakdown, special_units, ignored_units, defensive_buildings, production_buildings, upgrade_buildings, technology_buildings, remaining_basic_buildings, \
+            remaining_advanced_buildings, other_buildings, army_breakdown, workers, fitness_ignored = self.unit_setter(player_race)
+        if owned:
+            player = self.mainAgent.units
+        else:
+            # player = self.mainAgent.known_enemy_units
+            if len(self.mainAgent.known_enemy_units) != 0:
+                player = self.mainAgent.known_enemy_units
+                self.last_known_enemies = player #Update last known last_known_enemies
+            elif self.last_known_enemies != None:
+                player = self.last_known_enemies
+            else:
+                player = self.mainAgent.known_enemy_units
+
+        for unit in player:
+            if unit.name in fitness_ignored:
+                continue
+            elif unit.name in defensive_buildings:
+                defensive_buildings[unit.name] += 4
+            elif unit.name in production_buildings:
+                production_buildings[unit.name] += 2
+            elif unit.name in upgrade_buildings:
+                upgrade_buildings[unit.name] += 2
+            elif unit.name in technology_buildings:
+                technology_buildings[unit.name] += 3
+            elif unit.name in remaining_basic_buildings:
+                remaining_basic_buildings[unit.name] += 1
+            elif unit.name in remaining_advanced_buildings:
+                remaining_advanced_buildings[unit.name] += 2
+            elif unit.name in other_buildings:
+                other_buildings[unit.name] += 3
+            elif unit.name in army_breakdown:
+                army_breakdown[unit.name] += 1
+            else:
+                workers[unit.name] += 1
+        fitness_breakdown = {
+            **defensive_buildings, **production_buildings, **upgrade_buildings, **technology_buildings, **remaining_basic_buildings, \
+            **remaining_advanced_buildings, **other_buildings, **army_breakdown, **workers
+        }
+        return [fitness_breakdown[key] for key in fitness_breakdown]
+
 
     # https://stackoverflow.com/questions/32922909/how-to-stop-an-infinite-loop-safely-in-python
     """
@@ -228,8 +361,10 @@ class AgentSelector(LoserAgent):
             # print(bcolors.OKGREEN + "Length of inputs: %s" % str(len(self.create_inputs())))
             # print(bcolors.OKBLUE + "Inputs: {} ".format(self.create_inputs()))
             # print(bcolors.OKGREEN + "Ownded units breakdown: %s" % str(self.owned_units()))
-            print(bcolors.OKBLUE + "Enemies: {} ".format(self.last_known_enemies))
-            print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
+            # print(bcolors.OKBLUE + "Enemies: {} ".format(self.last_known_enemies))
+            print(bcolors.OKGREEN + "Fitness breakdown: {} ".format(self.fitness_breakdown(True, 2)))
+            print(bcolors.OKBLUE + "Total: {}, Idle: {}, Mineral: {}, Vespene: {}, Other: {}".format(self.total_worker_count(), self.idle_worker_count(), self.mineral_worker_count(), self.vespene_worker_count(), self.remaining_worker_count()))
+            # print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
             self.learn()
             self.selectNewAgentsAndStrategies()
 
@@ -315,7 +450,7 @@ class AgentSelector(LoserAgent):
         #appends all the input lists together, also puts them into lists of lists for the NN
         # ie [1, 2, 3] + [4, 5] => [[1, 2, 3, 4 ,5]]
         agentInputList = [curInputs + curAgent + curStrategy]
-        print(bcolors.WARNING + "###agentInputList: {}".format(agentInputList) + bcolors.ENDC)
+        # print(bcolors.WARNING + "###agentInputList: {}".format(agentInputList) + bcolors.ENDC)
         self.log("Predicting agentNN with inputs: {0}".format(str(agentInputList)))
 
         nextAgent = self.agentNN.predict(agentInputList)[0].tolist() #extract first row from returned numpy array
@@ -397,7 +532,7 @@ def checkNParseArgs(args):
         elif args.difficulty.lower() == "cheatinsane":
             difficulty = Difficulty.CheatInsane
         else:
-            raise ValueError("""Unknown difficulty: '{}'. Must be 
+            raise ValueError("""Unknown difficulty: '{}'. Must be
             VeryEasy, Easy, Medium, MediumHard, Hard, Harder, VeryHard, CheatVision, CheatMoney, CheatInsane""".format(args.difficulty))
 
     # Number
@@ -432,7 +567,7 @@ def main():
             enemyRace = random.choice(enemyRaceList)
         else:
             enemyRace = race
-        
+
         print(bcolors.OKGREEN + "###Opponent is {}: {}".format(enemyRace, enemyRaceList.index(enemyRace)) + bcolors.ENDC)
 
         # Start game with AgentSelector as the Bot, and begin logging
@@ -453,7 +588,7 @@ def main():
                 print(bcolors.FAIL + "Exiting Loop - Normal" + bcolors.ENDC)
                 break
 
-        
+
     os._exit(1)
 
 if __name__ == '__main__':
