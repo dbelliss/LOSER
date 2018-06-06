@@ -648,7 +648,8 @@ class LoserAgent(sc2.BotAI):
             self.cached_army = self.mainAgent.units.filter(
                 lambda x: x.name != "Drone" and x.name != "Overlord" and x.name != "Queen" and x.name != "CreepTumorQueen"\
                           and x.name != "Egg" and x.name != "Larva" and not x.is_structure and x.name != "CreepTumorBurrowed") \
-                            - self.mainAgent.units(LURKERMPBURROWED) - self.mainAgent.units(LURKERMPEGG)
+                            - self.mainAgent.units(LURKERMPBURROWED) - self.mainAgent.units(LURKERMPEGG) \
+                            - self.mainAgent.units(BANELINGCOCOON)
             return self.cached_army
 
     @property
@@ -665,6 +666,10 @@ class LoserAgent(sc2.BotAI):
 
     def get_random_worker(self):
         return self.mainAgent.units(DRONE).random
+
+    @property
+    def game_time(self):
+        return self.state.game_loop * 0.725 * (1 / 16)
 
     def get_known_enemy_bases(self):
         # Get all enemy structures, then filter to only take townhall types

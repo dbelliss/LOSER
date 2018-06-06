@@ -18,7 +18,7 @@ from sc2.player import Bot, Computer
 # agent imports
 from loser_agent import *
 from saferoach_agent import SafeRoachAgent
-from zerglingBanelingRush_agent import SpawnPoolRavagerAgent
+from zerglingBanelingRush_agent import ZerglingBanelingRushAgent
 from NeuralNetwork import NeuralNetwork
 from strategies import Strategies
 
