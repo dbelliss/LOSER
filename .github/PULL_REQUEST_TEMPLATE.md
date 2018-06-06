@@ -14,12 +14,12 @@ A checklist before submitting a Pull Request
 
 **This pull request proposes the following changes:**
 <!-- List changes that this RP includes -->
-- 
+-
 - 
 - 
 
 **Known issues/To do:**
 <!-- List any bugs that are introduced with this PR or anything that needs further development -->
-- 
+-
 - 
 - 
