@@ -63,6 +63,8 @@ class AgentSelector(LoserAgent):
         self.curStep = 0
         self.timesSwitched = 0
         self.last_known_enemies = None
+        self.correctChoice = 0
+        self.enterNeuralNetwork = False
 
         ''' Variables initialized by setupInputs() when game starts'''
         self.nInputs = 0
@@ -362,15 +364,47 @@ class AgentSelector(LoserAgent):
             # print(bcolors.OKBLUE + "Inputs: {} ".format(self.create_inputs()))
             # print(bcolors.OKGREEN + "Ownded units breakdown: %s" % str(self.owned_units()))
             # print(bcolors.OKBLUE + "Enemies: {} ".format(self.last_known_enemies))
-            print(bcolors.OKGREEN + "Fitness breakdown: {} ".format(self.fitness_breakdown(True, 2)))
-            print(bcolors.OKBLUE + "Total: {}, Idle: {}, Mineral: {}, Vespene: {}, Other: {}".format(self.total_worker_count(), self.idle_worker_count(), self.mineral_worker_count(), self.vespene_worker_count(), self.remaining_worker_count()))
+            # print(bcolors.OKGREEN + "Fitness breakdown: {} ".format(self.fitness_breakdown(True, 2)))
+            print(bcolors.OKBLUE + "Total: {}, Idle: {}, Mineral: {}, Vespene: {}, Other: {}".format(self.total_worker_count(), self.idle_worker_count(), self.mineral_worker_count(), self.vespene_worker_count(), self.remaining_worker_count()) + bcolors.ENDC)
             # print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
-            self.learn()
-            self.selectNewAgentsAndStrategies()
 
-        # TODO
+            # Check if we need to enter neural network based on fitness
+            self.checkFitness()
+
+            # Enter neural network based on condition
+            if self.enterNeuralNetwork == True:
+                print(bcolors.WARNING + "### Fitness Dropped 10% \n### ENTERING NETWORK" + bcolors.ENDC)
+                self.learn()
+                self.selectNewAgentsAndStrategies()
+
         # Call the current agent on_step
         await self.agents[self.curAgentIndex].on_step(iteration)
+
+    def checkFitness(self):
+        # Retrieve fitness score
+        curFitness = self.fitness()
+        print(bcolors.OKBLUE + "### Cur Fitness: " + str(curFitness) + bcolors.ENDC)
+
+        # Calculate Change
+        fit_diff = curFitness - self.lastFitness
+        if self.lastFitness != 0:
+            fit_proportion = float(fit_diff) / self.lastFitness
+        else:
+            fit_proportion = float(fit_diff)
+        fit_percent_change = fit_proportion * 100
+        print(bcolors.OKBLUE + "### Percent fitness change: {:0.2f}%".format(fit_percent_change) + bcolors.ENDC)
+
+        # Check if current fitness has dropped lower than or equal to 10%
+        if fit_percent_change <= -10:
+            # set flag to enter neural network
+            self.enterNeuralNetwork = True
+            self.correctChoice = 0
+        else:
+            self.enterNeuralNetwork = False
+            self.correctChoice = 1
+
+        # Update last fitness
+        self.lastFitness = curFitness
 
     def setupInputs(self):
         # Dry run through input creation to get idea of curInput size
@@ -396,18 +430,11 @@ class AgentSelector(LoserAgent):
 
 
     def learn(self):
-        curFitness = self.fitness()
-        print(bcolors.OKBLUE + "### Cur Fitness: " + str(curFitness) + bcolors.ENDC)
-
-        #bogus correct choice and fitness equations for now
-        correctChoice = 1 if curFitness > self.lastFitness else 0
-        self.lastFitness = curFitness
-
         #create list for all the inputs to the neural network
         prevAgent = [0] * self.nAgents
         prevStrategy = [0] * self.nStrategies
-        curAgent = [1 - correctChoice] * self.nAgents
-        curStrategy = [1 - correctChoice] * self.nStrategies
+        curAgent = [1 - self.correctChoice] * self.nAgents
+        curStrategy = [1 - self.correctChoice] * self.nStrategies
 
         #this is for the predicted agent that was used as input for the strategy NN. Must be 1 hot like it was during prediction
         predAgent = [0] * self.nAgents
@@ -420,8 +447,8 @@ class AgentSelector(LoserAgent):
 
         #set certainty that the choice was correct
         #these are the y's
-        curAgent[self.curAgentIndex] = correctChoice
-        curStrategy[self.strategiesIndex] = correctChoice
+        curAgent[self.curAgentIndex] = self.correctChoice
+        curStrategy[self.strategiesIndex] = self.correctChoice
 
         #appends all the input lists together, also puts them into lists of lists for the NN
         # ie [1, 2, 3] + [4, 5] => [[1, 2, 3, 4 ,5]]
@@ -429,8 +456,8 @@ class AgentSelector(LoserAgent):
         agentOutputList = [curAgent]
         strategyInputList = [self.prevInputs + predAgent + prevAgent + prevStrategy]
         strategyOutputList = [curStrategy]
-        self.log("Training agentNN with inputs: {0} and outputs {1}".format(str(agentInputList), str(agentOutputList)))
-        self.log("Training strategyNN with inputs: {0} and outputs {1}".format(str(strategyInputList), str(strategyOutputList)))
+        # self.log("Training agentNN with inputs: {0} and outputs {1}".format(str(agentInputList), str(agentOutputList)))
+        # self.log("Training strategyNN with inputs: {0} and outputs {1}".format(str(strategyInputList), str(strategyOutputList)))
         self.agentNN.train(agentInputList, agentOutputList)
         self.strategyNN.train(strategyInputList, strategyOutputList)
 
@@ -451,14 +478,14 @@ class AgentSelector(LoserAgent):
         # ie [1, 2, 3] + [4, 5] => [[1, 2, 3, 4 ,5]]
         agentInputList = [curInputs + curAgent + curStrategy]
         # print(bcolors.WARNING + "###agentInputList: {}".format(agentInputList) + bcolors.ENDC)
-        self.log("Predicting agentNN with inputs: {0}".format(str(agentInputList)))
+        # self.log("Predicting agentNN with inputs: {0}".format(str(agentInputList)))
 
         nextAgent = self.agentNN.predict(agentInputList)[0].tolist() #extract first row from returned numpy array
         nextAgentIndex = nextAgent.index(max(nextAgent))
         nextAgent = [nextAgent[i] if i == nextAgentIndex else 0 for i in range(len(nextAgent))]
 
         strategyInputList = [curInputs + nextAgent + curAgent + curStrategy]
-        self.log("Predicting strategyNN with inputs: {0}".format(str(strategyInputList)))
+        # self.log("Predicting strategyNN with inputs: {0}".format(str(strategyInputList)))
         nextStrategy = self.strategyNN.predict(strategyInputList)[0].tolist() #extract first row from returned numpy array
 
         self.prevAgent = self.curAgentIndex
@@ -553,7 +580,7 @@ def main():
     # Check which arguments are specified otherwise use defaults
     race, difficulty, number = checkNParseArgs(args)
 
-    print(bcolors.OKGREEN + "###Enemy Race is {}".format(race) + bcolors.ENDC)
+    print(bcolors.OKGREEN + "###Enemy Race is " + bcolors.FAIL + "{}".format(race) + bcolors.ENDC)
     print(bcolors.OKGREEN + "###Difficulty is {}".format(difficulty) + bcolors.ENDC)
     print(bcolors.OKGREEN + "###Number of games is {}\n".format(number) + bcolors.ENDC)
 
@@ -568,7 +595,7 @@ def main():
         else:
             enemyRace = race
 
-        print(bcolors.OKGREEN + "###Opponent is {}: {}".format(enemyRace, enemyRaceList.index(enemyRace)) + bcolors.ENDC)
+        print(bcolors.OKGREEN + "###Opponent is " + bcolors.FAIL + "{}: {}".format(enemyRace, enemyRaceList.index(enemyRace)) + bcolors.ENDC)
 
         # Start game with AgentSelector as the Bot, and begin logging
         result = sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
