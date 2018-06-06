@@ -1,5 +1,6 @@
 agents/logs/*
 agents/models/*
+agents/graphs/*
 .idea/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
