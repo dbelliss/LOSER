@@ -669,7 +669,7 @@ class LoserAgent(sc2.BotAI):
 
     @property
     def game_time(self):
-        return self.state.game_loop * 0.725 * (1 / 16)
+        return self.mainAgent.state.game_loop * 0.725 * (1 / 16)
 
     def get_known_enemy_bases(self):
         # Get all enemy structures, then filter to only take townhall types
