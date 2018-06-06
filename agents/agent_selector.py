@@ -8,6 +8,7 @@ import os
 import argparse
 import random
 import signal
+import matplotlib.pyplot as plt
 
 # python-sc2 imports
 import sc2
@@ -137,7 +138,7 @@ class AgentSelector(LoserAgent):
                 'BarracksReactor': 'Barracks', 'BarracksTechLab': 'Barracks', 'BarracksTechReactor': 'Barracks', 'FactoryTechLab': 'Factory', 'FactoryReactor': 'Factory',
                 'FactoryTechReactor': 'Factory', 'StarportTechLab': 'Starport', 'StarportTechReactor': 'Starport', 'StarportReactor': 'Starport'
             }
-            ignored_units = ['KD8Charge', 'MULE']
+            ignored_units = ['KD8Charge', 'MULE', 'Hellion']
             # Building fitness breakdown
             defensive_buildings = {'Bunker': 0, 'MissileTurret': 0, 'PlanetaryFortress': 0}
             production_buildings = {'Barracks': 0, 'BarracksFlying': 0, 'BarracksReactor': 0, 'BarracksTechLab': 0, 'BarracksTechReactor': 0}
@@ -154,7 +155,7 @@ class AgentSelector(LoserAgent):
                 'WidowMineBurrowed', 'VikingFighter', 'VikingAssault', 'BansheeCloak'
             ]
             workers = {'SCV': 0}
-            fitness_ignored = ['KD8Charge', 'MULE']
+            fitness_ignored = ['KD8Charge', 'MULE', 'Hellion']
         elif player_race == 2:
             unit_names = [
                 'Cocoon', 'Drone', 'Queen', 'Zergling', 'Baneling', 'Roach', 'Ravager', 'Hydralisk', 'Lurker', 'Infestor', 'SwarmHostMP', 'Ultralisk',
@@ -369,7 +370,7 @@ class AgentSelector(LoserAgent):
             # print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
 
             # Check if we need to enter neural network based on fitness
-            self.checkFitness()
+            self.checkFitness(iteration)
 
             # Enter neural network based on condition
             if self.enterNeuralNetwork == True:
@@ -380,9 +381,14 @@ class AgentSelector(LoserAgent):
         # Call the current agent on_step
         await self.agents[self.curAgentIndex].on_step(iteration)
 
-    def checkFitness(self):
+    def checkFitness(self, iteration):
         # Retrieve fitness score
         curFitness = self.fitness()
+
+        # Append fitness score to graph
+        xAxis.append(iteration)
+        yAxis.append(curFitness)
+
         print(bcolors.OKBLUE + "### Cur Fitness: " + str(curFitness) + bcolors.ENDC)
 
         # Calculate Change
@@ -574,6 +580,26 @@ def checkNParseArgs(args):
     return (race, difficulty, number)
 
 def main():
+    global xAxis
+    global yAxis
+
+    # TODO: Compare all terran opponent fitness in one graph
+    # TODO: Compare all zerg opponent fitness in one graph
+    # TODO: Compare all protoss opponent fitness in one graph
+
+    # TODO: Compare all terran opponent win/loss in one graph
+    # TODO: Compare all zerg opponent win/loss in one graph
+    # TODO: Compare all protoss opponent win/loss in one graph
+
+    # Make graphs folder
+    if not os.path.exists("./graphs"):
+        os.mkdir("./graphs")
+
+    # Make subfolder for game session
+    folderName = strftime("%Y-%m-%d %H:%M:%S", localtime())
+    if not os.path.exists("./graphs/{}".format(folderName)):
+        os.mkdir("./graphs/{}".format(folderName))
+
     # Read command line arguments
     args = readArguments()
 
@@ -588,7 +614,11 @@ def main():
     enemyRaceList = [Race.Terran, Race.Zerg, Race.Protoss]
 
     # Play number of games
-    for _ in range(number):
+    for idx in range(number):
+        # Reset axis for each game
+        xAxis = []
+        yAxis = []
+
         # Generate Random Opponent
         if race == "random":
             enemyRace = random.choice(enemyRaceList)
@@ -604,6 +634,29 @@ def main():
             Computer(enemyRace, difficulty)
         ], realtime=False)
 
+        fileRace = str(enemyRace).split(".")[1]
+        fileDifficulty = str(difficulty).split(".")[1]
+
+        # Separate each game
+        plt.figure(idx)
+
+        # Plot the points
+        plt.plot(xAxis, yAxis)
+
+        # Naming the x axis
+        plt.xlabel('Game Steps')
+        # Naming the y axis
+        plt.ylabel('Fitness Score')
+
+        # Give a title to the graph
+        plt.title("Game-{}_{}_{}".format(idx, fileRace, fileDifficulty))
+
+        # Create filename
+        filename = "./graphs/{}/Game-{}_{}_{}.png".format(folderName, idx, fileRace, fileDifficulty)
+        
+        # Save the plot
+        plt.savefig(filename)
+
         # Handles Ctrl-C exit
         try:
             if interrupted:
@@ -614,7 +667,6 @@ def main():
             if result == None:
                 print(bcolors.FAIL + "Exiting Loop - Normal" + bcolors.ENDC)
                 break
-
 
     os._exit(1)
 
