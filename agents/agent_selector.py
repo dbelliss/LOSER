@@ -9,6 +9,8 @@ import argparse
 import random
 import signal
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+import numpy as np
 
 # python-sc2 imports
 import sc2
@@ -582,7 +584,7 @@ def checkNParseArgs(args):
 
     return (race, difficulty, number)
 
-def graphIndividual(enemyRace, difficulty, idx):
+def graphLineIndividual(enemyRace, difficulty, idx):
     # Get string name from enum
     fileRace = str(enemyRace).split(".")[1]
     fileDifficulty = str(difficulty).split(".")[1]
@@ -620,59 +622,115 @@ def graphIndividual(enemyRace, difficulty, idx):
     # Save the plot
     plt.savefig(filename)
 
-def graphAll(number, difficulty):
+def graphLineAll(difficulty):
+    global figureCount
+
     fileDifficulty = str(difficulty).split(".")[1]
 
-    plt.figure(number)
+    # Graph all games
+    plt.figure(figureCount)
     filename = "./graphs/{}/0Games_Total.png".format(folderName)
     for x, y, idx, race in totalAxis:
         plt.plot(x, y, label="Game-{}_{}".format(idx, race))
-    # Naming the x axis
     plt.xlabel('Game Steps')
-    # Naming the y axis
     plt.ylabel('Fitness Score')
     plt.title("Games Total {}".format(fileDifficulty))
     plt.legend()
     plt.savefig(filename)
+    figureCount += 1
 
     # Graph terran games
-    plt.figure(number+1)
+    plt.figure(figureCount)
     filename = "./graphs/{}/1Games_Terran.png".format(folderName)
     for x, y, idx, race in terranAxis:
         plt.plot(x, y, label="Game-{}".format(idx))
-    # Naming the x axis
     plt.xlabel('Game Steps')
-    # Naming the y axis
     plt.ylabel('Fitness Score')
     plt.title("Games Terran {}".format(fileDifficulty))
     plt.legend()
     plt.savefig(filename)
+    figureCount += 1
 
     # Graph zerg games
-    plt.figure(number+2)
+    plt.figure(figureCount)
     filename = "./graphs/{}/2Games_Zerg.png".format(folderName)
     for x, y, idx, race in zergAxis:
         plt.plot(x, y, label="Game-{}".format(idx))
-    # Naming the x axis
     plt.xlabel('Game Steps')
-    # Naming the y axis
     plt.ylabel('Fitness Score')
     plt.title("Games Zerg {}".format(fileDifficulty))
     plt.legend()
     plt.savefig(filename)
+    figureCount += 1
 
     # Graph protoss games
-    plt.figure(number+3)
+    plt.figure(figureCount)
     filename = "./graphs/{}/3Games_Protoss.png".format(folderName)
     for x, y, idx, race in protossAxis:
         plt.plot(x, y, label="Game-{}".format(idx))
-    # Naming the x axis
     plt.xlabel('Game Steps')
-    # Naming the y axis
     plt.ylabel('Fitness Score')
     plt.title("Games Protoss {}".format(fileDifficulty))
     plt.legend()
     plt.savefig(filename)
+    figureCount += 1
+
+def trackWinLoss(enemyRace, result):
+    global totalWinLoss
+    global terranWinLoss
+    global zergWinLoss
+    global protossWinLoss
+    
+    # Get string name from enum
+    fileRace = str(enemyRace).split(".")[1]
+
+    # Determine score
+    score = np.array([0, 0])
+    if str(result) == "Result.Victory":
+        score[0] += 1
+    else:
+        score[1] += 1
+
+    # Add score to the total win/loss
+    totalWinLoss += score
+
+    # Add score to terran win/loss
+    if fileRace == "Terran":
+        terranWinLoss += score
+    # Add score to zerg win/loss
+    elif fileRace == "Zerg":
+        zergWinLoss += score
+    # Add score to protoss win/loss
+    else:
+        protossWinLoss += score
+
+def graphWinLoss():
+    global figureCount
+
+    # data to plot
+    n_groups = 3
+    barWinLoss = list(zip(terranWinLoss, zergWinLoss, protossWinLoss))
+    
+    # create plot
+    plt.subplots()
+    index = np.arange(n_groups)
+    bar_width = 0.35
+    
+    plt.bar(index, barWinLoss[0], bar_width, label='Win')
+    plt.bar(index + bar_width, barWinLoss[1], bar_width,label='Loss')
+    
+    ax = plt.figure(figureCount).gca()
+    plt.xlabel('Games')
+    plt.ylabel('Win/Loss')
+    plt.title('Win/Loss by race')
+    plt.xticks(index + bar_width, ('Terran', 'Zerg', 'Protoss'))
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig("./graphs/{}/4WinLoss_Race.png".format(folderName))
+    figureCount += 1
+    
 
 def main():
     # Axis for graphing
@@ -685,12 +743,29 @@ def main():
     zergAxis = []
     protossAxis = []
 
+    # Win/Loss
+    global totalWinLoss
+    global terranWinLoss
+    global zergWinLoss
+    global protossWinLoss
+    totalWinLoss = np.array([0, 0])
+    terranWinLoss = np.array([0, 0])
+    zergWinLoss = np.array([0, 0])
+    protossWinLoss = np.array([0, 0])
+
     # x and y values added when agent runs
     global xAxis
     global yAxis
+    xAxis = []
+    yAxis = []
 
     # directory to store graphs
     global folderName
+    folderName = ""
+
+    # Keep track of figure
+    global figureCount
+    figureCount = 0
 
     # TODO: Compare all terran opponent win/loss in one graph
     # TODO: Compare all zerg opponent win/loss in one graph
@@ -740,7 +815,10 @@ def main():
         ], realtime=False)
 
         # Graph individual games
-        graphIndividual(enemyRace, difficulty, idx)
+        graphLineIndividual(enemyRace, difficulty, idx)
+
+        # Keep track of win/loss
+        trackWinLoss(enemyRace, result)
 
         # Handles Ctrl-C exit
         try:
@@ -753,8 +831,13 @@ def main():
                 print(bcolors.FAIL + "Exiting Loop - Normal" + bcolors.ENDC)
                 break
 
+    # Keep track of number of figures
+    figureCount = number
+
     # Graph all for total and for each race
-    graphAll(number, difficulty)
+    graphLineAll(difficulty)
+
+    graphWinLoss()
 
     os._exit(1)
 
