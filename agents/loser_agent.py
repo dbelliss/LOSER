@@ -151,6 +151,48 @@ class LoserAgent(sc2.BotAI):
 
             # Saves army each iteration to prevent duplicate queries
             self.cached_army = None
+
+            # For SafeRoach (i'm so sorry)
+            # Number of BUILT units, different from number of unit types
+            self.creeptumors_built = 0  # number of built creep tumors
+            self.creeptumors_built_queen = 0  # number of seed creep tumors built by queens
+            self.drones_built = 0  # number of built drones
+            self.overlords_built = 0  # number of overlords built
+            self.hatcheries_built = 0  # number of hatcheries built
+            self.rebuild_viable_tumor = 0  # number of viable tumors rebuilt
+            self.zerglings_built = 0  # number of zerglings built
+            self.queens_built = 0  # number of queens built
+            self.sporecrawlers_built = 0  # number of spore crawlers built
+            self.spinecrawlers_built = 0  # number of spine crawlers built
+            self.drone_gapnum = 0  # gap in missing drones
+            self.drone_gapnumcounter = 0  # counter for replenishing drones
+            self.done_gap_closing = False  # closed gap boolean
+            self.roaches_built = 0  # Number of roaches built
+            self.hydralisks_built = 0  # Number of hydralisks built
+            self.extractors_built = 0  # number of extractors built
+
+            self.queen_gapnum = 0  # gap in missing queens
+            self.queen_gapnumcounter = 0  # counter for replenishing queens
+
+            # checks for true/false
+            self.base_build_order_complete = False  # checks if base build order is complete
+            self.viable_tumor = True  # checks if there's a tumor that can spawn other tumors
+
+            # standard upgrades
+            self.built_gas1 = False
+            self.moved_workers_to_gas1 = False  # whether workers are assigned to the first vespene geyser
+            self.built_sp = False  # whether a spawning pool was built
+            self.research_zmb = False  # whether RESEARCH_ZERGLINGMETABOLICBOOST was performed
+            self.built_rwarren = False  # whether the roach warren was built
+            self.built_lair = False  # True if one Lair has been upgraded
+            self.built_gr = False  # True if glial reconstitution has been built
+            self.built_hd = False  # True if hydralisk den has been built
+            self.built_gs = False  # True if grooved spines are researched
+            self.built_ec = False  # True if evolution chamber is built
+            self.built_ga1 = False  # True if ground armor 1 built
+            self.built_mw1 = False  # True if missile weapon 1 built
+
+            self.OG_hatchery = 0
     '''
     Base on_step function
     Uses basic_build and performs actions based on the current strategy
