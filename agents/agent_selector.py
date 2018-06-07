@@ -11,6 +11,7 @@ import signal
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
+from collections import defaultdict
 
 # python-sc2 imports
 import sc2
@@ -48,7 +49,7 @@ class AgentSelector(LoserAgent):
         print(bcolors.OKGREEN + "###AgentSelector Constructor" + bcolors.ENDC)
 
         # List of build orders
-        self.agents = [MutaliskAgent()]
+        self.agents = [MutaliskAgent(), ZerglingBanelingRushAgent(), SafeRoachAgent(), DumbAgent()]
         self.nAgents = len(self.agents)
 
         # Choose RandomBuild
@@ -503,6 +504,12 @@ class AgentSelector(LoserAgent):
         self.agentNN.saveWeights()
         self.strategyNN.saveWeights()
 
+        # Add to agent frequency
+        agentName = str(self.agents[self.curAgentIndex]).split(".")[1].split(" ")[0]
+        agentFreq[agentName] += 1
+        # strategyname = str(self.strategies(self.strategiesIndex)).split(".")[1]
+        # agentFreq[strategyname] += 1
+
 """
 Parse command line arguments
 List options: python3 agent_selector.py -h
@@ -748,11 +755,19 @@ def main():
     zergWinLoss = np.array([0, 0])
     protossWinLoss = np.array([0, 0])
 
+    # Agent for graphing
+    global totalAgent
+    totalAgent = []
+
     # x and y values added when agent runs
     global xAxis
     global yAxis
     xAxis = []
     yAxis = []
+    
+    # Agent values added when agent runs
+    global agentFreq
+    agentFreq = defaultdict(lambda: 0)
 
     # directory to store graphs
     global folderName
@@ -761,10 +776,6 @@ def main():
     # Keep track of figure
     global figureCount
     figureCount = 0
-
-    # TODO: Compare all terran opponent win/loss in one graph
-    # TODO: Compare all zerg opponent win/loss in one graph
-    # TODO: Compare all protoss opponent win/loss in one graph
 
     # Make graphs folder
     if not os.path.exists("./graphs"):
@@ -793,6 +804,8 @@ def main():
         # Reset axis for each game before running agent
         xAxis = []
         yAxis = []
+        # Reset agent frequency
+        agentFreq = defaultdict(lambda: 0)
 
         # Generate Random Opponent
         if race == "random":
@@ -814,6 +827,7 @@ def main():
 
         # Keep track of win/loss
         trackWinLoss(enemyRace, result)
+        totalAgent.append(agentFreq)
 
         # Handles Ctrl-C exit
         try:
@@ -833,6 +847,30 @@ def main():
     graphLineAll(difficulty)
 
     graphWinLoss()
+
+
+#########
+    # Agent Frequency individual games
+    plt.figure(figureCount)
+
+    # labels for bars
+    tick_label = list(agentFreq.keys())
+
+    # plotting a bar chart
+    plt.bar(list(range(1, len(agentFreq.keys())+1)), agentFreq.values(), tick_label = tick_label, width = 0.8)
+
+    plt.xticks(rotation=45, ha="right")
+
+    # naming the x-axis
+    plt.xlabel('Agents')
+    # naming the y-axis
+    plt.ylabel('Times used')
+    # plot title
+    plt.title('Agent Frequency Game-{}'.format(0))
+
+    plt.savefig("./graphs/{}/5AgentFreq.png".format(folderName), bbox_inches="tight")
+    figureCount += 1
+#########
 
     os._exit(1)
 
