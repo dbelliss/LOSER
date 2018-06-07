@@ -1,4 +1,4 @@
-# Starcraft2AI
+# L.O.S.E.R. (Learning Operational Strategy Electing Robot)
 A Starcraft 2 AI
 
 ## Setup
@@ -22,10 +22,10 @@ If you have already installed the Dentosal python-sc2 repository, go into the in
 `python3.6 examples/cannon_rush.py`
 
 ### Current issues:
-* After a game ends, the pygame window does not close. You can close it by hitting `ctl+c` in the terminal window that the game was started in (Note: Do not press more than once)
-* Agents do not seem to be able to access properties like mineral_content
+* Error messages printing with certain operations like building extractors
+* Moving the camera around in game has a chance to crash the agent
 
 ## Notes
 * All agents derive from the base LoserAgent class
-* The agent the swaps between other agents is AgentSelector
+* The agent that swaps between other agents is AgentSelector
 
