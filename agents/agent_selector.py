@@ -8,6 +8,9 @@ import os
 import argparse
 import random
 import signal
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+import numpy as np
 
 # python-sc2 imports
 import sc2
@@ -64,6 +67,8 @@ class AgentSelector(LoserAgent):
         self.curStep = 0
         self.timesSwitched = 0
         self.last_known_enemies = None
+        self.correctChoice = 0
+        self.enterNeuralNetwork = False
 
         ''' Variables initialized by setupInputs() when game starts'''
         self.nInputs = 0
@@ -76,11 +81,11 @@ class AgentSelector(LoserAgent):
         self.lastFitness = 0
 
     def chooseRandomBuild(self):
-        self.curAgentIndex = 0
+        self.curAgentIndex = random.randint(0, self.nAgents-1)
         print(bcolors.OKGREEN + "###RandomBuildIndex: {}".format(self.agents[self.curAgentIndex]) + bcolors.ENDC)
 
     def chooseRandomStrategy(self):
-        self.strategiesIndex = 0
+        self.strategiesIndex = random.randint(0, self.nStrategies-1)
         print(bcolors.OKGREEN + "###RandomStrategyIndex: {}".format(self.strategiesIndex) + bcolors.ENDC)
 
     def total_worker_count(self):
@@ -136,21 +141,21 @@ class AgentSelector(LoserAgent):
                 'BarracksReactor': 'Barracks', 'BarracksTechLab': 'Barracks', 'BarracksTechReactor': 'Barracks', 'FactoryTechLab': 'Factory', 'FactoryReactor': 'Factory',
                 'FactoryTechReactor': 'Factory', 'StarportTechLab': 'Starport', 'StarportTechReactor': 'Starport', 'StarportReactor': 'Starport'
             }
-            ignored_units = ['KD8Charge', 'MULE']
+            ignored_units = ['KD8Charge', 'MULE', 'Hellion']
             # Building fitness breakdown
             defensive_buildings = {'Bunker': 0, 'MissileTurret': 0, 'PlanetaryFortress': 0}
             production_buildings = {'Barracks': 0, 'BarracksFlying': 0, 'BarracksReactor': 0, 'BarracksTechLab': 0, 'BarracksTechReactor': 0}
             upgrade_buildings = {'EngineeringBay': 0, 'Armory': 0}
             technology_buildings = {'EngineeringBay': 0, 'Armory': 0, 'GhostAcademy': 0, 'FusionCore': 0}
-            remaining_basic_buildings = {'CommandCenter': 0, 'SupplyDepot': 0, 'Refinery': 0, 'SensorTower': 0, 'SupplyDepotDrop': 0, 'SupplyDepotLowered': 0}
+            remaining_basic_buildings = {'CommandCenter': 0, 'SupplyDepot': 0, 'Refinery': 0, 'SensorTower': 0, 'SupplyDepotDrop': 0, 'SupplyDepotLowered': 0, 'Reactor': 0}
             remaining_advanced_buildings = {'PlanetaryFortress': 0, 'Factory': 0, 'Starport': 0, 'FactoryTechLab': 0, 'FactoryReactor': 0, 'FactoryTechReactor': 0, 'StarportTechLab': 0, 'StarportTechReactor': 0, 'StarportReactor': 0, 'TechLab': 0}
             other_buildings = {'OrbitalCommand': 0, 'OrbitalCommandFlying': 0}
             # Army fitness breakdown
             # TODO figure out better breakdown for army fitness
             army = [
-                'Marine', 'Marauder', 'Reaper', 'Ghost', 'HellionTank', 'Hellbat', 'SiegeTank', 'Cyclone', 'WidowMine', 'Thor',
+                'Marine', 'Marauder', 'Reaper', 'Ghost', 'HellionTank', 'Hellbat', 'SiegeTank', 'Cyclone', 'WidowMine', 'Thor', 'Hellion',
                 'AutoTurret', 'Viking', 'Medivac', 'Liberator', 'Raven', 'Banshee', 'Battlecruiser', 'PointDefenseDrone', 'SiegeTankSieged'
-                'WidowMineBurrowed', 'VikingFighter', 'VikingAssault', 'BansheeCloak'
+                'WidowMineBurrowed', 'VikingFighter', 'VikingAssault', 'BansheeCloak', 'SiegeTankSieged'
             ]
             workers = {'SCV': 0}
             fitness_ignored = ['KD8Charge', 'MULE']
@@ -311,26 +316,29 @@ class AgentSelector(LoserAgent):
                 player = self.mainAgent.known_enemy_units
 
         for unit in player:
-            if unit.name in fitness_ignored:
-                continue
-            elif unit.name in defensive_buildings:
-                defensive_buildings[unit.name] += 4
-            elif unit.name in production_buildings:
-                production_buildings[unit.name] += 2
-            elif unit.name in upgrade_buildings:
-                upgrade_buildings[unit.name] += 2
-            elif unit.name in technology_buildings:
-                technology_buildings[unit.name] += 3
-            elif unit.name in remaining_basic_buildings:
-                remaining_basic_buildings[unit.name] += 1
-            elif unit.name in remaining_advanced_buildings:
-                remaining_advanced_buildings[unit.name] += 2
-            elif unit.name in other_buildings:
-                other_buildings[unit.name] += 3
-            elif unit.name in army_breakdown:
-                army_breakdown[unit.name] += 1
-            else:
-                workers[unit.name] += 1
+            try:
+                if unit.name in fitness_ignored:
+                    continue
+                elif unit.name in defensive_buildings:
+                    defensive_buildings[unit.name] += 4
+                elif unit.name in production_buildings:
+                    production_buildings[unit.name] += 2
+                elif unit.name in upgrade_buildings:
+                    upgrade_buildings[unit.name] += 2
+                elif unit.name in technology_buildings:
+                    technology_buildings[unit.name] += 3
+                elif unit.name in remaining_basic_buildings:
+                    remaining_basic_buildings[unit.name] += 1
+                elif unit.name in remaining_advanced_buildings:
+                    remaining_advanced_buildings[unit.name] += 2
+                elif unit.name in other_buildings:
+                    other_buildings[unit.name] += 3
+                elif unit.name in army_breakdown:
+                    army_breakdown[unit.name] += 1
+                else:
+                    workers[unit.name] += 1
+            except KeyError:
+                self.log("Fitness names not covered: {0}".format(str(unit.name)))
         fitness_breakdown = {
             **defensive_buildings, **production_buildings, **upgrade_buildings, **technology_buildings, **remaining_basic_buildings, \
             **remaining_advanced_buildings, **other_buildings, **army_breakdown, **workers
@@ -363,15 +371,52 @@ class AgentSelector(LoserAgent):
             # print(bcolors.OKBLUE + "Inputs: {} ".format(self.create_inputs()))
             # print(bcolors.OKGREEN + "Ownded units breakdown: %s" % str(self.owned_units()))
             # print(bcolors.OKBLUE + "Enemies: {} ".format(self.last_known_enemies))
-            print(bcolors.OKGREEN + "Fitness breakdown: {} ".format(self.fitness_breakdown(True, 2)))
-            print(bcolors.OKBLUE + "Total: {}, Idle: {}, Mineral: {}, Vespene: {}, Other: {}".format(self.total_worker_count(), self.idle_worker_count(), self.mineral_worker_count(), self.vespene_worker_count(), self.remaining_worker_count()))
+            # print(bcolors.OKGREEN + "Fitness breakdown: {} ".format(self.fitness_breakdown(True, 2)))
+            print(bcolors.OKBLUE + "Total: {}, Idle: {}, Mineral: {}, Vespene: {}, Other: {}".format(self.total_worker_count(), self.idle_worker_count(), self.mineral_worker_count(), self.vespene_worker_count(), self.remaining_worker_count()) + bcolors.ENDC)
             # print(bcolors.OKGREEN + "###Fitness function: {}".format(iteration) + bcolors.ENDC)
-            self.learn()
-            self.selectNewAgentsAndStrategies()
 
-        # TODO
+            # Check if we need to enter neural network based on fitness
+            self.checkFitness(iteration)
+
+            # Enter neural network based on condition
+            if self.enterNeuralNetwork == True:
+                print(bcolors.WARNING + "### Fitness Dropped 10% \n### ENTERING NETWORK" + bcolors.ENDC)
+                self.learn()
+                self.selectNewAgentsAndStrategies()
+
         # Call the current agent on_step
         await self.agents[self.curAgentIndex].on_step(iteration, self.strategiesIndex)
+
+    def checkFitness(self, iteration):
+        # Retrieve fitness score
+        curFitness = self.fitness()
+
+        # Append fitness score to graph
+        xAxis.append(iteration)
+        yAxis.append(curFitness)
+
+        print(bcolors.OKBLUE + "### Cur Fitness: " + str(curFitness) + bcolors.ENDC)
+
+        # Calculate Change
+        fit_diff = curFitness - self.lastFitness
+        if self.lastFitness != 0:
+            fit_proportion = float(fit_diff) / self.lastFitness
+        else:
+            fit_proportion = float(fit_diff)
+        fit_percent_change = fit_proportion * 100
+        print(bcolors.OKBLUE + "### Percent fitness change: {:0.2f}%".format(fit_percent_change) + bcolors.ENDC)
+
+        # Check if current fitness has dropped lower than or equal to 10%
+        if fit_percent_change <= -10:
+            # set flag to enter neural network
+            self.enterNeuralNetwork = True
+            self.correctChoice = 0
+        else:
+            self.enterNeuralNetwork = False
+            self.correctChoice = 1
+
+        # Update last fitness
+        self.lastFitness = curFitness
 
     def setupInputs(self):
         # Dry run through input creation to get idea of curInput size
@@ -397,18 +442,11 @@ class AgentSelector(LoserAgent):
 
 
     def learn(self):
-        curFitness = self.fitness()
-        print(bcolors.OKBLUE + "### Cur Fitness: " + str(curFitness) + bcolors.ENDC)
-
-        #bogus correct choice and fitness equations for now
-        correctChoice = 1 if curFitness > self.lastFitness else 0
-        self.lastFitness = curFitness
-
         #create list for all the inputs to the neural network
         prevAgent = [0] * self.nAgents
         prevStrategy = [0] * self.nStrategies
-        curAgent = [1 - correctChoice] * self.nAgents
-        curStrategy = [1 - correctChoice] * self.nStrategies
+        curAgent = [1 - self.correctChoice] * self.nAgents
+        curStrategy = [1 - self.correctChoice] * self.nStrategies
 
         #this is for the predicted agent that was used as input for the strategy NN. Must be 1 hot like it was during prediction
         predAgent = [0] * self.nAgents
@@ -421,8 +459,8 @@ class AgentSelector(LoserAgent):
 
         #set certainty that the choice was correct
         #these are the y's
-        curAgent[self.curAgentIndex] = correctChoice
-        curStrategy[self.strategiesIndex] = correctChoice
+        curAgent[self.curAgentIndex] = self.correctChoice
+        curStrategy[self.strategiesIndex] = self.correctChoice
 
         #appends all the input lists together, also puts them into lists of lists for the NN
         # ie [1, 2, 3] + [4, 5] => [[1, 2, 3, 4 ,5]]
@@ -430,8 +468,8 @@ class AgentSelector(LoserAgent):
         agentOutputList = [curAgent]
         strategyInputList = [self.prevInputs + predAgent + prevAgent + prevStrategy]
         strategyOutputList = [curStrategy]
-        self.log("Training agentNN with inputs: {0} and outputs {1}".format(str(agentInputList), str(agentOutputList)))
-        self.log("Training strategyNN with inputs: {0} and outputs {1}".format(str(strategyInputList), str(strategyOutputList)))
+        # self.log("Training agentNN with inputs: {0} and outputs {1}".format(str(agentInputList), str(agentOutputList)))
+        # self.log("Training strategyNN with inputs: {0} and outputs {1}".format(str(strategyInputList), str(strategyOutputList)))
         self.agentNN.train(agentInputList, agentOutputList)
         self.strategyNN.train(strategyInputList, strategyOutputList)
 
@@ -452,14 +490,14 @@ class AgentSelector(LoserAgent):
         # ie [1, 2, 3] + [4, 5] => [[1, 2, 3, 4 ,5]]
         agentInputList = [curInputs + curAgent + curStrategy]
         # print(bcolors.WARNING + "###agentInputList: {}".format(agentInputList) + bcolors.ENDC)
-        self.log("Predicting agentNN with inputs: {0}".format(str(agentInputList)))
+        # self.log("Predicting agentNN with inputs: {0}".format(str(agentInputList)))
 
         nextAgent = self.agentNN.predict(agentInputList)[0].tolist() #extract first row from returned numpy array
         nextAgentIndex = nextAgent.index(max(nextAgent))
         nextAgent = [nextAgent[i] if i == nextAgentIndex else 0 for i in range(len(nextAgent))]
 
         strategyInputList = [curInputs + nextAgent + curAgent + curStrategy]
-        self.log("Predicting strategyNN with inputs: {0}".format(str(strategyInputList)))
+        # self.log("Predicting strategyNN with inputs: {0}".format(str(strategyInputList)))
         nextStrategy = self.strategyNN.predict(strategyInputList)[0].tolist() #extract first row from returned numpy array
 
         self.prevAgent = self.curAgentIndex
@@ -547,14 +585,209 @@ def checkNParseArgs(args):
 
     return (race, difficulty, number)
 
+def graphLineIndividual(enemyRace, difficulty, idx):
+    # Get string name from enum
+    fileRace = str(enemyRace).split(".")[1]
+    fileDifficulty = str(difficulty).split(".")[1]
+
+    # Add axis to the total axis
+    totalAxis.append((xAxis, yAxis, idx, fileRace))
+
+    # Add axis to terran
+    if fileRace == "Terran":
+        terranAxis.append((xAxis, yAxis, idx, fileRace))
+    # Add axis to zerg
+    elif fileRace == "Zerg":
+        zergAxis.append((xAxis, yAxis, idx, fileRace))
+    # Add axis to protoss
+    else:
+        protossAxis.append((xAxis, yAxis, idx, fileRace))
+
+    # Separate each game
+    plt.figure(idx)
+
+    # Plot the points
+    plt.plot(xAxis, yAxis)
+
+    # Naming the x axis
+    plt.xlabel('Game Steps')
+    # Naming the y axis
+    plt.ylabel('Fitness Score')
+
+    # Give a title to the graph
+    plt.title("Game-{}_{}_{}".format(idx, fileRace, fileDifficulty))
+
+    # Create filename
+    filename = "./graphs/{}/Game-{}_{}_{}.png".format(folderName, idx, fileRace, fileDifficulty)
+
+    # Save the plot
+    plt.savefig(filename)
+
+def graphLineAll(difficulty):
+    global figureCount
+
+    fileDifficulty = str(difficulty).split(".")[1]
+
+    # Graph all games
+    plt.figure(figureCount)
+    filename = "./graphs/{}/0Games_Total.png".format(folderName)
+    for x, y, idx, race in totalAxis:
+        plt.plot(x, y, label="Game-{}_{}".format(idx, race))
+    plt.xlabel('Game Steps')
+    plt.ylabel('Fitness Score')
+    plt.title("Games Total {}".format(fileDifficulty))
+    plt.legend()
+    plt.savefig(filename)
+    figureCount += 1
+
+    # Graph terran games
+    plt.figure(figureCount)
+    filename = "./graphs/{}/1Games_Terran.png".format(folderName)
+    for x, y, idx, race in terranAxis:
+        plt.plot(x, y, label="Game-{}".format(idx))
+    plt.xlabel('Game Steps')
+    plt.ylabel('Fitness Score')
+    plt.title("Games Terran {}".format(fileDifficulty))
+    plt.legend()
+    plt.savefig(filename)
+    figureCount += 1
+
+    # Graph zerg games
+    plt.figure(figureCount)
+    filename = "./graphs/{}/2Games_Zerg.png".format(folderName)
+    for x, y, idx, race in zergAxis:
+        plt.plot(x, y, label="Game-{}".format(idx))
+    plt.xlabel('Game Steps')
+    plt.ylabel('Fitness Score')
+    plt.title("Games Zerg {}".format(fileDifficulty))
+    plt.legend()
+    plt.savefig(filename)
+    figureCount += 1
+
+    # Graph protoss games
+    plt.figure(figureCount)
+    filename = "./graphs/{}/3Games_Protoss.png".format(folderName)
+    for x, y, idx, race in protossAxis:
+        plt.plot(x, y, label="Game-{}".format(idx))
+    plt.xlabel('Game Steps')
+    plt.ylabel('Fitness Score')
+    plt.title("Games Protoss {}".format(fileDifficulty))
+    plt.legend()
+    plt.savefig(filename)
+    figureCount += 1
+
+def trackWinLoss(enemyRace, result):
+    global totalWinLoss
+    global terranWinLoss
+    global zergWinLoss
+    global protossWinLoss
+    
+    # Get string name from enum
+    fileRace = str(enemyRace).split(".")[1]
+
+    # Determine score
+    score = np.array([0, 0])
+    if str(result) == "Result.Victory":
+        score[0] += 1
+    else:
+        score[1] += 1
+
+    # Add score to the total win/loss
+    totalWinLoss += score
+
+    # Add score to terran win/loss
+    if fileRace == "Terran":
+        terranWinLoss += score
+    # Add score to zerg win/loss
+    elif fileRace == "Zerg":
+        zergWinLoss += score
+    # Add score to protoss win/loss
+    else:
+        protossWinLoss += score
+
+def graphWinLoss():
+    global figureCount
+
+    # data to plot
+    n_groups = 3
+    barWinLoss = list(zip(terranWinLoss, zergWinLoss, protossWinLoss))
+    
+    # create plot
+    plt.subplots()
+    index = np.arange(n_groups)
+    bar_width = 0.35
+    
+    plt.bar(index, barWinLoss[0], bar_width, label='Win')
+    plt.bar(index + bar_width, barWinLoss[1], bar_width,label='Loss')
+    
+    ax = plt.figure(figureCount).gca()
+    plt.xlabel('Games')
+    plt.ylabel('Win/Loss')
+    plt.title('Win/Loss by race')
+    plt.xticks(index + bar_width, ('Terran', 'Zerg', 'Protoss'))
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig("./graphs/{}/4WinLoss_Race.png".format(folderName))
+    figureCount += 1
+    
+
 def main():
+    # Axis for graphing
+    global totalAxis
+    global terranAxis
+    global zergAxis
+    global protossAxis
+    totalAxis = []
+    terranAxis = []
+    zergAxis = []
+    protossAxis = []
+
+    # Win/Loss
+    global totalWinLoss
+    global terranWinLoss
+    global zergWinLoss
+    global protossWinLoss
+    totalWinLoss = np.array([0, 0])
+    terranWinLoss = np.array([0, 0])
+    zergWinLoss = np.array([0, 0])
+    protossWinLoss = np.array([0, 0])
+
+    # x and y values added when agent runs
+    global xAxis
+    global yAxis
+    xAxis = []
+    yAxis = []
+
+    # directory to store graphs
+    global folderName
+    folderName = ""
+
+    # Keep track of figure
+    global figureCount
+    figureCount = 0
+
+    # TODO: Compare all terran opponent win/loss in one graph
+    # TODO: Compare all zerg opponent win/loss in one graph
+    # TODO: Compare all protoss opponent win/loss in one graph
+
+    # Make graphs folder
+    if not os.path.exists("./graphs"):
+        os.mkdir("./graphs")
+
+    # Make subfolder for game session
+    folderName = strftime("%Y-%m-%d %H:%M:%S", localtime())
+    if not os.path.exists("./graphs/{}".format(folderName)):
+        os.mkdir("./graphs/{}".format(folderName))
+
     # Read command line arguments
     args = readArguments()
 
     # Check which arguments are specified otherwise use defaults
     race, difficulty, number = checkNParseArgs(args)
 
-    print(bcolors.OKGREEN + "###Enemy Race is {}".format(race) + bcolors.ENDC)
+    print(bcolors.OKGREEN + "###Enemy Race is " + bcolors.FAIL + "{}".format(race) + bcolors.ENDC)
     print(bcolors.OKGREEN + "###Difficulty is {}".format(difficulty) + bcolors.ENDC)
     print(bcolors.OKGREEN + "###Number of games is {}\n".format(number) + bcolors.ENDC)
 
@@ -562,14 +795,18 @@ def main():
     enemyRaceList = [Race.Terran, Race.Zerg, Race.Protoss]
 
     # Play number of games
-    for _ in range(number):
+    for idx in range(number):
+        # Reset axis for each game before running agent
+        xAxis = []
+        yAxis = []
+
         # Generate Random Opponent
         if race == "random":
             enemyRace = random.choice(enemyRaceList)
         else:
             enemyRace = race
 
-        print(bcolors.OKGREEN + "###Opponent is {}: {}".format(enemyRace, enemyRaceList.index(enemyRace)) + bcolors.ENDC)
+        print(bcolors.OKGREEN + "###Opponent is " + bcolors.FAIL + "{}: {}".format(enemyRace, enemyRaceList.index(enemyRace)) + bcolors.ENDC)
 
         # Start game with AgentSelector as the Bot, and begin logging
         result = sc2.run_game(sc2.maps.get("Abyssal Reef LE"), [
@@ -577,6 +814,12 @@ def main():
             # If you change the opponent race remember to change nInputs in the __init__ as well
             Computer(enemyRace, difficulty)
         ], realtime=False)
+
+        # Graph individual games
+        graphLineIndividual(enemyRace, difficulty, idx)
+
+        # Keep track of win/loss
+        trackWinLoss(enemyRace, result)
 
         # Handles Ctrl-C exit
         try:
@@ -589,6 +832,13 @@ def main():
                 print(bcolors.FAIL + "Exiting Loop - Normal" + bcolors.ENDC)
                 break
 
+    # Keep track of number of figures
+    figureCount = number
+
+    # Graph all for total and for each race
+    graphLineAll(difficulty)
+
+    graphWinLoss()
 
     os._exit(1)
 
