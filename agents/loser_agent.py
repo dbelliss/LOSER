@@ -89,7 +89,7 @@ class LoserAgent(sc2.BotAI):
             self.num_banelines_built = 0
             self.num_lurkers_built = 0
             self.num_ravagers_built = 0
-            self.num_num_mutalisks_built = 0
+            self.num_mutalisks_built = 0
             self.num_corrupters_built = 0
             self.num_brood_lords_built = 0
             self.num_swarm_hosts_built = 0
@@ -151,18 +151,19 @@ class LoserAgent(sc2.BotAI):
 
             # Saves army each iteration to prevent duplicate queries
             self.cached_army = None
+
     '''
     Base on_step function
     Uses basic_build and performs actions based on the current strategy
     For now, strategies will change ever 100 steps
     Harass strategies are not implemented yet
     '''
-    async def on_step(self, iteration, strategy_num=0):
+    async def on_step(self, iteration, strategy_num):
         # self.log("Step: %s Overlord: %s" % (str(iteration), str(self.mainAgent.units(OVERLORD).amount)))
         # self.log("Step: " + str(iteration))
 
         # TEMP: Until strategy is given by Q table
-        strategy_num = (int)(iteration / 75) % 12
+        #strategy_num = (int)(iteration / 75) % 12
 
         # Build lings, queen, overlords, drones, and meleeattack1
         await self.basic_build(iteration)
