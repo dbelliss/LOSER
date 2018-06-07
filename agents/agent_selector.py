@@ -78,11 +78,11 @@ class AgentSelector(LoserAgent):
         self.lastFitness = 0
 
     def chooseRandomBuild(self):
-        self.curAgentIndex = 0
+        self.curAgentIndex = random.randint(0, self.nAgents-1)
         print(bcolors.OKGREEN + "###RandomBuildIndex: {}".format(self.agents[self.curAgentIndex]) + bcolors.ENDC)
 
     def chooseRandomStrategy(self):
-        self.strategiesIndex = 0
+        self.strategiesIndex = random.randint(0, self.nStrategies-1)
         print(bcolors.OKGREEN + "###RandomStrategyIndex: {}".format(self.strategiesIndex) + bcolors.ENDC)
 
     def total_worker_count(self):
@@ -582,13 +582,115 @@ def checkNParseArgs(args):
 
     return (race, difficulty, number)
 
+def graphIndividual(enemyRace, difficulty, idx):
+    # Get string name from enum
+    fileRace = str(enemyRace).split(".")[1]
+    fileDifficulty = str(difficulty).split(".")[1]
+
+    # Add axis to the total axis
+    totalAxis.append((xAxis, yAxis, idx, fileRace))
+
+    # Add axis to terran
+    if fileRace == "Terran":
+        terranAxis.append((xAxis, yAxis, idx, fileRace))
+    # Add axis to zerg
+    elif fileRace == "Zerg":
+        zergAxis.append((xAxis, yAxis, idx, fileRace))
+    # Add axis to protoss
+    else:
+        protossAxis.append((xAxis, yAxis, idx, fileRace))
+
+    # Separate each game
+    plt.figure(idx)
+
+    # Plot the points
+    plt.plot(xAxis, yAxis)
+
+    # Naming the x axis
+    plt.xlabel('Game Steps')
+    # Naming the y axis
+    plt.ylabel('Fitness Score')
+
+    # Give a title to the graph
+    plt.title("Game-{}_{}_{}".format(idx, fileRace, fileDifficulty))
+
+    # Create filename
+    filename = "./graphs/{}/Game-{}_{}_{}.png".format(folderName, idx, fileRace, fileDifficulty)
+
+    # Save the plot
+    plt.savefig(filename)
+
+def graphAll(number, difficulty):
+    fileDifficulty = str(difficulty).split(".")[1]
+
+    plt.figure(number)
+    filename = "./graphs/{}/0Games_Total.png".format(folderName)
+    for x, y, idx, race in totalAxis:
+        plt.plot(x, y, label="Game-{}_{}".format(idx, race))
+    # Naming the x axis
+    plt.xlabel('Game Steps')
+    # Naming the y axis
+    plt.ylabel('Fitness Score')
+    plt.title("Games Total {}".format(fileDifficulty))
+    plt.legend()
+    plt.savefig(filename)
+
+    # Graph terran games
+    plt.figure(number+1)
+    filename = "./graphs/{}/1Games_Terran.png".format(folderName)
+    for x, y, idx, race in terranAxis:
+        plt.plot(x, y, label="Game-{}".format(idx))
+    # Naming the x axis
+    plt.xlabel('Game Steps')
+    # Naming the y axis
+    plt.ylabel('Fitness Score')
+    plt.title("Games Terran {}".format(fileDifficulty))
+    plt.legend()
+    plt.savefig(filename)
+
+    # Graph zerg games
+    plt.figure(number+2)
+    filename = "./graphs/{}/2Games_Zerg.png".format(folderName)
+    for x, y, idx, race in zergAxis:
+        plt.plot(x, y, label="Game-{}".format(idx))
+    # Naming the x axis
+    plt.xlabel('Game Steps')
+    # Naming the y axis
+    plt.ylabel('Fitness Score')
+    plt.title("Games Zerg {}".format(fileDifficulty))
+    plt.legend()
+    plt.savefig(filename)
+
+    # Graph protoss games
+    plt.figure(number+3)
+    filename = "./graphs/{}/3Games_Protoss.png".format(folderName)
+    for x, y, idx, race in protossAxis:
+        plt.plot(x, y, label="Game-{}".format(idx))
+    # Naming the x axis
+    plt.xlabel('Game Steps')
+    # Naming the y axis
+    plt.ylabel('Fitness Score')
+    plt.title("Games Protoss {}".format(fileDifficulty))
+    plt.legend()
+    plt.savefig(filename)
+
 def main():
+    # Axis for graphing
+    global totalAxis
+    global terranAxis
+    global zergAxis
+    global protossAxis
+    totalAxis = []
+    terranAxis = []
+    zergAxis = []
+    protossAxis = []
+
+    # x and y values added when agent runs
     global xAxis
     global yAxis
 
-    # TODO: Compare all terran opponent fitness in one graph
-    # TODO: Compare all zerg opponent fitness in one graph
-    # TODO: Compare all protoss opponent fitness in one graph
+    # directory to store graphs
+    global folderName
 
     # TODO: Compare all terran opponent win/loss in one graph
     # TODO: Compare all zerg opponent win/loss in one graph
@@ -618,7 +720,7 @@ def main():
 
     # Play number of games
     for idx in range(number):
-        # Reset axis for each game
+        # Reset axis for each game before running agent
         xAxis = []
         yAxis = []
 
@@ -637,28 +739,8 @@ def main():
             Computer(enemyRace, difficulty)
         ], realtime=False)
 
-        fileRace = str(enemyRace).split(".")[1]
-        fileDifficulty = str(difficulty).split(".")[1]
-
-        # Separate each game
-        plt.figure(idx)
-
-        # Plot the points
-        plt.plot(xAxis, yAxis)
-
-        # Naming the x axis
-        plt.xlabel('Game Steps')
-        # Naming the y axis
-        plt.ylabel('Fitness Score')
-
-        # Give a title to the graph
-        plt.title("Game-{}_{}_{}".format(idx, fileRace, fileDifficulty))
-
-        # Create filename
-        filename = "./graphs/{}/Game-{}_{}_{}.png".format(folderName, idx, fileRace, fileDifficulty)
-
-        # Save the plot
-        plt.savefig(filename)
+        # Graph individual games
+        graphIndividual(enemyRace, difficulty, idx)
 
         # Handles Ctrl-C exit
         try:
@@ -670,6 +752,9 @@ def main():
             if result == None:
                 print(bcolors.FAIL + "Exiting Loop - Normal" + bcolors.ENDC)
                 break
+
+    # Graph all for total and for each race
+    graphAll(number, difficulty)
 
     os._exit(1)
 
