@@ -23,6 +23,7 @@ from loser_agent import *
 from saferoach_agent import SafeRoachAgent
 from zerglingBanelingRush_agent import ZerglingBanelingRushAgent
 from mutalisk_agent import MutaliskAgent
+from dumbagent import DumbAgent
 from NeuralNetwork import NeuralNetwork
 from strategies import Strategies
 
@@ -68,7 +69,6 @@ class AgentSelector(LoserAgent):
         self.timesSwitched = 0
         self.last_known_enemies = None
         self.correctChoice = 0
-        self.enterNeuralNetwork = False
 
         ''' Variables initialized by setupInputs() when game starts'''
         self.nInputs = 0
@@ -378,11 +378,9 @@ class AgentSelector(LoserAgent):
             # Check if we need to enter neural network based on fitness
             self.checkFitness(iteration)
 
-            # Enter neural network based on condition
-            if self.enterNeuralNetwork == True:
-                print(bcolors.WARNING + "### Fitness Dropped 10% \n### ENTERING NETWORK" + bcolors.ENDC)
-                self.learn()
-                self.selectNewAgentsAndStrategies()
+            print(bcolors.WARNING + "### Selecting new Agent and Strategy" + bcolors.ENDC)
+            self.learn()
+            self.selectNewAgentsAndStrategies()
 
         # Call the current agent on_step
         await self.agents[self.curAgentIndex].on_step(iteration, self.strategiesIndex)
@@ -408,11 +406,8 @@ class AgentSelector(LoserAgent):
 
         # Check if current fitness has dropped lower than or equal to 10%
         if fit_percent_change <= -10:
-            # set flag to enter neural network
-            self.enterNeuralNetwork = True
             self.correctChoice = 0
         else:
-            self.enterNeuralNetwork = False
             self.correctChoice = 1
 
         # Update last fitness
@@ -436,7 +431,7 @@ class AgentSelector(LoserAgent):
         # inputs = nData inputs + 2 * nAgents (for last and current agent selected) + nStrategies (for last strategy selected)
         # outputs = nStrategies
         self.strategyNN = NeuralNetwork(self.nInputs + 2 * self.nAgents + self.nStrategies, self.nStrategies, 1, 1, 100, opponent_race, "strategy")
-
+        self.strategyNN.loadWeights()
         print(bcolors.OKBLUE + "### One time neural input setup" + bcolors.ENDC)
         print(bcolors.OKBLUE + "### Enemy is " + str(self.mainAgent.game_info.player_races[2]) + bcolors.ENDC)
 
@@ -472,7 +467,6 @@ class AgentSelector(LoserAgent):
         # self.log("Training strategyNN with inputs: {0} and outputs {1}".format(str(strategyInputList), str(strategyOutputList)))
         self.agentNN.train(agentInputList, agentOutputList)
         self.strategyNN.train(strategyInputList, strategyOutputList)
-
 
     def selectNewAgentsAndStrategies(self):
         #define other inputs to NN
@@ -777,7 +771,7 @@ def main():
         os.mkdir("./graphs")
 
     # Make subfolder for game session
-    folderName = strftime("%Y-%m-%d %H:%M:%S", localtime())
+    folderName = strftime("%Y-%m-%d %H%M%S", localtime())
     if not os.path.exists("./graphs/{}".format(folderName)):
         os.mkdir("./graphs/{}".format(folderName))
 
