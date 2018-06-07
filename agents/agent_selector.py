@@ -721,7 +721,7 @@ def graphWinLoss():
     plt.bar(index + bar_width, barWinLoss[1], bar_width,label='Loss')
     
     ax = plt.figure(figureCount).gca()
-    plt.xlabel('Games')
+    plt.xlabel('Races')
     plt.ylabel('Win/Loss')
     plt.title('Win/Loss by race')
     plt.xticks(index + bar_width, ('Terran', 'Zerg', 'Protoss'))
