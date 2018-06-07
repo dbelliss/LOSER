@@ -621,7 +621,7 @@ def graphLineIndividual(enemyRace, difficulty, idx):
     filename = "./graphs/{}/Game-{}_{}_{}.png".format(folderName, idx, fileRace, fileDifficulty)
 
     # Save the plot
-    plt.savefig(filename)
+    plt.savefig(filename, bbox_inches="tight")
 
 def graphLineAll(difficulty):
     global figureCount
@@ -636,8 +636,8 @@ def graphLineAll(difficulty):
     plt.xlabel('Game Steps')
     plt.ylabel('Fitness Score')
     plt.title("Games Total {}".format(fileDifficulty))
-    plt.legend()
-    plt.savefig(filename)
+    plt.legend(loc="upper left", bbox_to_anchor=(1,1))
+    plt.savefig(filename, bbox_inches="tight")
     figureCount += 1
 
     # Graph terran games
@@ -648,8 +648,8 @@ def graphLineAll(difficulty):
     plt.xlabel('Game Steps')
     plt.ylabel('Fitness Score')
     plt.title("Games Terran {}".format(fileDifficulty))
-    plt.legend()
-    plt.savefig(filename)
+    plt.legend(loc="upper left", bbox_to_anchor=(1,1))
+    plt.savefig(filename, bbox_inches="tight")
     figureCount += 1
 
     # Graph zerg games
@@ -660,8 +660,8 @@ def graphLineAll(difficulty):
     plt.xlabel('Game Steps')
     plt.ylabel('Fitness Score')
     plt.title("Games Zerg {}".format(fileDifficulty))
-    plt.legend()
-    plt.savefig(filename)
+    plt.legend(loc="upper left", bbox_to_anchor=(1,1))
+    plt.savefig(filename, bbox_inches="tight")
     figureCount += 1
 
     # Graph protoss games
@@ -672,8 +672,8 @@ def graphLineAll(difficulty):
     plt.xlabel('Game Steps')
     plt.ylabel('Fitness Score')
     plt.title("Games Protoss {}".format(fileDifficulty))
-    plt.legend()
-    plt.savefig(filename)
+    plt.legend(loc="upper left", bbox_to_anchor=(1,1))
+    plt.savefig(filename, bbox_inches="tight")
     figureCount += 1
 
 def trackWinLoss(enemyRace, result):
@@ -726,7 +726,7 @@ def graphWinLoss():
     plt.title('Win/Loss by race')
     plt.xticks(index + bar_width, ('Terran', 'Zerg', 'Protoss'))
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-    plt.legend()
+    plt.legend(loc="upper left", bbox_to_anchor=(1,1))
     
     plt.tight_layout()
     plt.savefig("./graphs/{}/4WinLoss_Race.png".format(folderName))
