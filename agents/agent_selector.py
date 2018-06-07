@@ -144,18 +144,18 @@ class AgentSelector(LoserAgent):
             production_buildings = {'Barracks': 0, 'BarracksFlying': 0, 'BarracksReactor': 0, 'BarracksTechLab': 0, 'BarracksTechReactor': 0}
             upgrade_buildings = {'EngineeringBay': 0, 'Armory': 0}
             technology_buildings = {'EngineeringBay': 0, 'Armory': 0, 'GhostAcademy': 0, 'FusionCore': 0}
-            remaining_basic_buildings = {'CommandCenter': 0, 'SupplyDepot': 0, 'Refinery': 0, 'SensorTower': 0, 'SupplyDepotDrop': 0, 'SupplyDepotLowered': 0}
+            remaining_basic_buildings = {'CommandCenter': 0, 'SupplyDepot': 0, 'Refinery': 0, 'SensorTower': 0, 'SupplyDepotDrop': 0, 'SupplyDepotLowered': 0, 'Reactor': 0}
             remaining_advanced_buildings = {'PlanetaryFortress': 0, 'Factory': 0, 'Starport': 0, 'FactoryTechLab': 0, 'FactoryReactor': 0, 'FactoryTechReactor': 0, 'StarportTechLab': 0, 'StarportTechReactor': 0, 'StarportReactor': 0, 'TechLab': 0}
             other_buildings = {'OrbitalCommand': 0, 'OrbitalCommandFlying': 0}
             # Army fitness breakdown
             # TODO figure out better breakdown for army fitness
             army = [
-                'Marine', 'Marauder', 'Reaper', 'Ghost', 'HellionTank', 'Hellbat', 'SiegeTank', 'Cyclone', 'WidowMine', 'Thor',
+                'Marine', 'Marauder', 'Reaper', 'Ghost', 'HellionTank', 'Hellbat', 'SiegeTank', 'Cyclone', 'WidowMine', 'Thor', 'Hellion',
                 'AutoTurret', 'Viking', 'Medivac', 'Liberator', 'Raven', 'Banshee', 'Battlecruiser', 'PointDefenseDrone', 'SiegeTankSieged'
-                'WidowMineBurrowed', 'VikingFighter', 'VikingAssault', 'BansheeCloak'
+                'WidowMineBurrowed', 'VikingFighter', 'VikingAssault', 'BansheeCloak', 'SiegeTankSieged'
             ]
             workers = {'SCV': 0}
-            fitness_ignored = ['KD8Charge', 'MULE', 'Hellion']
+            fitness_ignored = ['KD8Charge', 'MULE']
         elif player_race == 2:
             unit_names = [
                 'Cocoon', 'Drone', 'Queen', 'Zergling', 'Baneling', 'Roach', 'Ravager', 'Hydralisk', 'Lurker', 'Infestor', 'SwarmHostMP', 'Ultralisk',
@@ -313,26 +313,29 @@ class AgentSelector(LoserAgent):
                 player = self.mainAgent.known_enemy_units
 
         for unit in player:
-            if unit.name in fitness_ignored:
-                continue
-            elif unit.name in defensive_buildings:
-                defensive_buildings[unit.name] += 4
-            elif unit.name in production_buildings:
-                production_buildings[unit.name] += 2
-            elif unit.name in upgrade_buildings:
-                upgrade_buildings[unit.name] += 2
-            elif unit.name in technology_buildings:
-                technology_buildings[unit.name] += 3
-            elif unit.name in remaining_basic_buildings:
-                remaining_basic_buildings[unit.name] += 1
-            elif unit.name in remaining_advanced_buildings:
-                remaining_advanced_buildings[unit.name] += 2
-            elif unit.name in other_buildings:
-                other_buildings[unit.name] += 3
-            elif unit.name in army_breakdown:
-                army_breakdown[unit.name] += 1
-            else:
-                workers[unit.name] += 1
+            try:
+                if unit.name in fitness_ignored:
+                    continue
+                elif unit.name in defensive_buildings:
+                    defensive_buildings[unit.name] += 4
+                elif unit.name in production_buildings:
+                    production_buildings[unit.name] += 2
+                elif unit.name in upgrade_buildings:
+                    upgrade_buildings[unit.name] += 2
+                elif unit.name in technology_buildings:
+                    technology_buildings[unit.name] += 3
+                elif unit.name in remaining_basic_buildings:
+                    remaining_basic_buildings[unit.name] += 1
+                elif unit.name in remaining_advanced_buildings:
+                    remaining_advanced_buildings[unit.name] += 2
+                elif unit.name in other_buildings:
+                    other_buildings[unit.name] += 3
+                elif unit.name in army_breakdown:
+                    army_breakdown[unit.name] += 1
+                else:
+                    workers[unit.name] += 1
+            except KeyError:
+                self.log("Fitness names not covered: {0}".format(str(unit.name)))
         fitness_breakdown = {
             **defensive_buildings, **production_buildings, **upgrade_buildings, **technology_buildings, **remaining_basic_buildings, \
             **remaining_advanced_buildings, **other_buildings, **army_breakdown, **workers
@@ -653,7 +656,7 @@ def main():
 
         # Create filename
         filename = "./graphs/{}/Game-{}_{}_{}.png".format(folderName, idx, fileRace, fileDifficulty)
-        
+
         # Save the plot
         plt.savefig(filename)
 
