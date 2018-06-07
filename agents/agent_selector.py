@@ -180,7 +180,7 @@ class AgentSelector(LoserAgent):
             production_buildings = {' ': 0}
             upgrade_buildings = {'EvolutionChamber': 0, 'Spire': 0}
             technology_buildings = {'SpawningPool': 0, 'RoachWarren': 0, 'BanelingNest': 0, 'HydraliskDen': 0, 'LurkerDenMP': 0, 'Spire': 0, 'GreaterSpire': 0, 'UltraliskCavern': 0}
-            remaining_basic_buildings = {'Hatchery': 0, 'Extractor': 0, 'CreepTumor': 0, 'Overlord': 0, 'OverlordTransport': 0, 'CreepTumorBurrowed': 0}
+            remaining_basic_buildings = {'Hatchery': 0, 'Extractor': 0, 'Overlord': 0, 'OverlordTransport': 0}
             remaining_advanced_buildings = {'Lair': 0,'InfestationPit': 0, 'Overseer': 0, 'OverseerSiegeMode': 0}
             other_buildings = {'Hive': 0}
             # army lists for Fitness
@@ -192,7 +192,10 @@ class AgentSelector(LoserAgent):
                 'InfestorBurrowed', 'SwarmHostBurrowedMP', 'UltraliskBurrowed', 'LocustMPFlying', 'ChangelingMarine', 'ChangelingZealot', 'ChangelingZergling', 'InfestorTerranBurrowed'
             ]
             workers = {'Drone': 0, 'DroneBurrowed': 0}
-            fitness_ignored = ['Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg', 'Cocoon', 'RavagerCocoon', 'BanelingCocoon', 'OverlordCocoon', 'BroodLordCocoon', 'TransportOverlordCocoon']
+            fitness_ignored = [
+                'Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg', 'Cocoon', 'RavagerCocoon', 'BanelingCocoon', 'OverlordCocoon', 'BroodLordCocoon', 'TransportOverlordCocoon',
+                'CreepTumor', 'CreepTumorBurrowed'
+            ]
         else:
             unit_names = [
                 'Probe', 'Zealot', 'Stalker', 'Sentry', 'Adept', 'HighTemplar', 'DarkTemplar', 'Immortal', 'Colossus', 'Interceptor'
@@ -682,7 +685,7 @@ def trackWinLoss(enemyRace, result):
     global terranWinLoss
     global zergWinLoss
     global protossWinLoss
-    
+
     # Get string name from enum
     fileRace = str(enemyRace).split(".")[1]
 
@@ -712,15 +715,15 @@ def graphWinLoss():
     # data to plot
     n_groups = 3
     barWinLoss = list(zip(terranWinLoss, zergWinLoss, protossWinLoss))
-    
+
     # create plot
     plt.subplots()
     index = np.arange(n_groups)
     bar_width = 0.35
-    
+
     plt.bar(index, barWinLoss[0], bar_width, label='Win')
     plt.bar(index + bar_width, barWinLoss[1], bar_width,label='Loss')
-    
+
     ax = plt.figure(figureCount).gca()
     plt.xlabel('Races')
     plt.ylabel('Win/Loss')
@@ -728,11 +731,11 @@ def graphWinLoss():
     plt.xticks(index + bar_width, ('Terran', 'Zerg', 'Protoss'))
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
     plt.legend(loc="upper left", bbox_to_anchor=(1,1))
-    
+
     plt.tight_layout()
     plt.savefig("./graphs/{}/4WinLoss_Race.png".format(folderName))
     figureCount += 1
-    
+
 
 def main():
     # Axis for graphing
@@ -764,7 +767,7 @@ def main():
     global yAxis
     xAxis = []
     yAxis = []
-    
+
     # Agent values added when agent runs
     global agentFreq
     agentFreq = defaultdict(lambda: 0)
