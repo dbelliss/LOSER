@@ -53,7 +53,7 @@ Difficulty settings are defined by the starcraft 2 protobuf as the following:
 * medium
 * hard
 * harder
-* very hard
+* veryhard
 * cheatvision
 * cheatmoney
 * cheatinsane
