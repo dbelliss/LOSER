@@ -67,9 +67,6 @@ Difficulty settings are defined by the starcraft 2 protobuf as the following:
 ## How it Works
 Our main agent is designed to choose one strategy from a pool of strategies (attack, defend, scout, harass), and one build from a pool of builds (For example Zergling and Baneling). After certain intervals of time, the agent will evaluate it's current fitness, and if it is below a certain threshold, it will input the game state (unit composition, enemy unit composition, minerals, vespene gas, etc.) into a a neural network to determine the next strategy it should choose, and input the same data into a different neural network to determine the build to use.
 
-## Graphs
-After completing a game, graphs will automatically be generated along the following respective path: `LOSER/agents/graphs/` which will have a directory with the time stamp from when you ran the bot. Inside that directory you will find more information about the bot performance including overall fitness, overall agent and strategy selection, win loss ratio, and individual game statistics on fitness, agent selections, and strategies.
-
 ### LoserAgent
 All of these classes derive from LoserAgent. Loser agent is the only agent that implements strategy functions. LoserAgent also has it's own build order, but this is only to quickly test the base agent.
 
@@ -99,4 +96,7 @@ Possible builds an agent can use are:
 * Hydralisk and Zergling
 * Zergling and Baneling
 
+## Bot Performance
+### Graphs
+After completing a game, graphs will automatically be generated along the following respective path: `LOSER/agents/graphs/` which will have a directory with the time stamp from when you ran the bot. Inside that directory you will find more information about the bot performance including overall fitness, overall agent and strategy selection, win loss ratio, and individual game statistics on fitness, agent selections, and strategies.
 
