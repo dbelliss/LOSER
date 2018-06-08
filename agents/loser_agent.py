@@ -334,6 +334,13 @@ class LoserAgent(sc2.BotAI):
         if self.mainAgent.predicted_enemy_position_num == -1:
             # Initializing things that are needed after game data is loaded
 
+            # Prevent game from crashing
+            hatchery = self.mainAgent.bases
+            if hatchery == None or hatchery.amount == 0:
+                return
+            else:
+                hatchery = self.mainAgent.bases.ready.random
+                
             # Assume first position
             self.mainAgent.predicted_enemy_position = 0
             self.mainAgent.num_enemy_positions = len(self.mainAgent.enemy_start_locations)
