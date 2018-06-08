@@ -514,7 +514,7 @@ class AgentSelector(LoserAgent):
 
         # Add to agent strategy
         strategyname = str(self.strategies(self.strategiesIndex)).split(".")[1]
-        agentFreq[strategyname] += 1
+        agentStrat[strategyname] += 1
 
 """
 Parse command line arguments
@@ -592,7 +592,7 @@ def checkNParseArgs(args):
 
     return (race, difficulty, number)
 
-def graphLineIndividual(enemyRace, difficulty, idx):
+def graphFitnessIndividual(enemyRace, difficulty, idx):
     global figureCount
 
     # Get string name from enum
@@ -634,14 +634,14 @@ def graphLineIndividual(enemyRace, difficulty, idx):
 
     figureCount += 1
 
-def graphLineAll(difficulty):
+def graphFitnessAll(difficulty):
     global figureCount
 
     fileDifficulty = str(difficulty).split(".")[1]
 
     # Graph all games
     plt.figure(figureCount)
-    filename = "./graphs/{}/0Games_Total.png".format(folderName)
+    filename = "./graphs/{}/0Fitness_Total.png".format(folderName)
     for x, y, idx, race in totalAxis:
         plt.plot(x, y, label="Game-{}_{}".format(idx, race))
     plt.xlabel('Game Steps')
@@ -653,7 +653,7 @@ def graphLineAll(difficulty):
 
     # Graph terran games
     plt.figure(figureCount)
-    filename = "./graphs/{}/1Games_Terran.png".format(folderName)
+    filename = "./graphs/{}/1Fitness_Terran.png".format(folderName)
     for x, y, idx, race in terranAxis:
         plt.plot(x, y, label="Game-{}".format(idx))
     plt.xlabel('Game Steps')
@@ -665,7 +665,7 @@ def graphLineAll(difficulty):
 
     # Graph zerg games
     plt.figure(figureCount)
-    filename = "./graphs/{}/2Games_Zerg.png".format(folderName)
+    filename = "./graphs/{}/2Fitness_Zerg.png".format(folderName)
     for x, y, idx, race in zergAxis:
         plt.plot(x, y, label="Game-{}".format(idx))
     plt.xlabel('Game Steps')
@@ -677,7 +677,7 @@ def graphLineAll(difficulty):
 
     # Graph protoss games
     plt.figure(figureCount)
-    filename = "./graphs/{}/3Games_Protoss.png".format(folderName)
+    filename = "./graphs/{}/3Fitness_Protoss.png".format(folderName)
     for x, y, idx, race in protossAxis:
         plt.plot(x, y, label="Game-{}".format(idx))
     plt.xlabel('Game Steps')
@@ -1081,7 +1081,7 @@ def main():
         ], realtime=False)
 
         # Graph individual games
-        graphLineIndividual(enemyRace, difficulty, idx)
+        graphFitnessIndividual(enemyRace, difficulty, idx)
 
         # Keep track of win/loss
         trackWinLoss(enemyRace, result)
@@ -1104,7 +1104,7 @@ def main():
                 break
 
     # Graph all for total and for each race
-    graphLineAll(difficulty)
+    graphFitnessAll(difficulty)
 
     # Graph all for frequency
     graphAgentFreqAll(difficulty)
