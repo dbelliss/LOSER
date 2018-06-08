@@ -368,6 +368,14 @@ class LoserAgent(sc2.BotAI):
 
         # Call the proper strategy function
 
+
+        # Prevent game from crashing
+        hatchery = self.mainAgent.bases
+        if hatchery == None or hatchery.amount == 0:
+            return
+        else:
+            hatchery = self.mainAgent.bases.ready.random
+
         # Attack
         if strategy == Strategies.HEAVY_ATTACK:
             await self.heavy_attack(iteration)
