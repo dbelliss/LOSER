@@ -906,6 +906,71 @@ def graphAgentStratIndividual(enemyRace, difficulty, idx):
     plt.savefig("./graphs/{}/agentStrat{}.png".format(folderName, idx), bbox_inches="tight")
     figureCount += 1
 
+def graphAgentStratAll(difficulty):
+    global figureCount
+    
+    fileDifficulty = str(difficulty).split(".")[1]
+
+    # Graph all games
+    ax = plt.figure(figureCount).gca()
+    for agentStrat, idx, race in totalAgentStrat:
+        tick_label = list(agentStrat.keys())
+        numAgents = list(range(1, len(agentStrat.keys())+1))
+        plt.bar(numAgents, agentStrat.values(), tick_label = tick_label, width = 0.8)
+    filename = "./graphs/{}/9AgentStrat_Total.png".format(folderName)
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel('Agents')
+    plt.ylabel('Times used')
+    plt.title('Agent Strategy Total')
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.savefig(filename, bbox_inches="tight")
+    figureCount += 1
+
+    # Graph terran games
+    ax = plt.figure(figureCount).gca()
+    for agentStrat, idx, race in terranAgentStrat:
+        tick_label = list(agentStrat.keys())
+        numAgents = list(range(1, len(agentStrat.keys())+1))
+        plt.bar(numAgents, agentStrat.values(), tick_label = tick_label, width = 0.8)
+    filename = "./graphs/{}/10AgentStrat_Terran.png".format(folderName)
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel('Agents')
+    plt.ylabel('Times used')
+    plt.title('Agent Strategy Total')
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.savefig(filename, bbox_inches="tight")
+    figureCount += 1
+
+    # Graph zerg games
+    ax = plt.figure(figureCount).gca()
+    for agentStrat, idx, race in zergAgentStrat:
+        tick_label = list(agentStrat.keys())
+        numAgents = list(range(1, len(agentStrat.keys())+1))
+        plt.bar(numAgents, agentStrat.values(), tick_label = tick_label, width = 0.8)
+    filename = "./graphs/{}/11AgentStrat_Zerg.png".format(folderName)
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel('Agents')
+    plt.ylabel('Times used')
+    plt.title('Agent Strategy Total')
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.savefig(filename, bbox_inches="tight")
+    figureCount += 1
+
+    # Graph protoss games
+    ax = plt.figure(figureCount).gca()
+    for agentStrat, idx, race in protossAgentStrat:
+        tick_label = list(agentStrat.keys())
+        numAgents = list(range(1, len(agentStrat.keys())+1))
+        plt.bar(numAgents, agentStrat.values(), tick_label = tick_label, width = 0.8)
+    filename = "./graphs/{}/12AgentStrat_Protoss.png".format(folderName)
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel('Agents')
+    plt.ylabel('Times used')
+    plt.title('Agent Strategy Total')
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.savefig(filename, bbox_inches="tight")
+    figureCount += 1
+
 
 def main():
     # Axis for graphing
@@ -1043,6 +1108,9 @@ def main():
 
     # Graph all for frequency
     graphAgentFreqAll(difficulty)
+
+    # Graph all for strategy
+    graphAgentStratAll(difficulty)
 
     # Graph win loss for each race
     graphWinLoss()
