@@ -748,7 +748,17 @@ def graphAgentFreqIndividual(enemyRace, difficulty, idx):
     fileDifficulty = str(difficulty).split(".")[1]
 
     # Put agent freq on the global list
-    totalAgent.append((agentFreq, idx, fileRace))
+    totalAgentFreq.append((agentFreq, idx, fileRace))
+
+    # Add freq to terran
+    if fileRace == "Terran":
+        terranAgentFreq.append((agentFreq, idx, fileRace))
+    # Add freq to zerg
+    elif fileRace == "Zerg":
+        zergAgentFreq.append((agentFreq, idx, fileRace))
+    # Add freq to protoss
+    else:
+        protossAgentFreq.append((agentFreq, idx, fileRace))
     
     # Agent Frequency individual games
     ax = plt.figure(figureCount).gca()
@@ -778,7 +788,72 @@ def graphAgentFreqIndividual(enemyRace, difficulty, idx):
 
     plt.savefig("./graphs/{}/AgentFreq{}.png".format(folderName, idx), bbox_inches="tight")
     figureCount += 1
+
+def graphAgentFreqAll(difficulty):
+    global figureCount
     
+    fileDifficulty = str(difficulty).split(".")[1]
+
+    # Graph all games
+    ax = plt.figure(figureCount).gca()
+    for agentFreq, idx, race in totalAgentFreq:
+        tick_label = list(agentFreq.keys())
+        numAgents = list(range(1, len(agentFreq.keys())+1))
+        plt.bar(numAgents, agentFreq.values(), tick_label = tick_label, width = 0.8)
+    filename = "./graphs/{}/5AgentFreq_Total.png".format(folderName)
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel('Agents')
+    plt.ylabel('Times used')
+    plt.title('Agent Frequency Total')
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.savefig(filename, bbox_inches="tight")
+    figureCount += 1
+
+    # Graph terran games
+    ax = plt.figure(figureCount).gca()
+    for agentFreq, idx, race in terranAgentFreq:
+        tick_label = list(agentFreq.keys())
+        numAgents = list(range(1, len(agentFreq.keys())+1))
+        plt.bar(numAgents, agentFreq.values(), tick_label = tick_label, width = 0.8)
+    filename = "./graphs/{}/6AgentFreq_Terran.png".format(folderName)
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel('Agents')
+    plt.ylabel('Times used')
+    plt.title('Agent Frequency Total')
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.savefig(filename, bbox_inches="tight")
+    figureCount += 1
+
+    # Graph zerg games
+    ax = plt.figure(figureCount).gca()
+    for agentFreq, idx, race in zergAgentFreq:
+        tick_label = list(agentFreq.keys())
+        numAgents = list(range(1, len(agentFreq.keys())+1))
+        plt.bar(numAgents, agentFreq.values(), tick_label = tick_label, width = 0.8)
+    filename = "./graphs/{}/7AgentFreq_Zerg.png".format(folderName)
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel('Agents')
+    plt.ylabel('Times used')
+    plt.title('Agent Frequency Total')
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.savefig(filename, bbox_inches="tight")
+    figureCount += 1
+
+    # Graph protoss games
+    ax = plt.figure(figureCount).gca()
+    for agentFreq, idx, race in protossAgentFreq:
+        tick_label = list(agentFreq.keys())
+        numAgents = list(range(1, len(agentFreq.keys())+1))
+        plt.bar(numAgents, agentFreq.values(), tick_label = tick_label, width = 0.8)
+    filename = "./graphs/{}/8AgentFreq_Protoss.png".format(folderName)
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel('Agents')
+    plt.ylabel('Times used')
+    plt.title('Agent Frequency Total')
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.savefig(filename, bbox_inches="tight")
+    figureCount += 1
+
 
 def main():
     # Axis for graphing
@@ -802,8 +877,14 @@ def main():
     protossWinLoss = np.array([0, 0])
 
     # Total for graphing all agent freq
-    global totalAgent
-    totalAgent = []
+    global totalAgentFreq
+    global terranAgentFreq
+    global zergAgentFreq
+    global protossAgentFreq
+    totalAgentFreq = []
+    terranAgentFreq = []
+    zergAgentFreq = []
+    protossAgentFreq = []
 
     # x and y values added when agent runs
     global xAxis
@@ -890,6 +971,9 @@ def main():
 
     # Graph all for total and for each race
     graphLineAll(difficulty)
+
+    # Graph all for frequency
+    graphAgentFreqAll(difficulty)
 
     # Graph win loss for each race
     graphWinLoss()
