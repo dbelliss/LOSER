@@ -627,7 +627,7 @@ def graphFitnessIndividual(enemyRace, difficulty, idx):
     plt.title("Game-{}_{}_{}".format(figureCount, fileRace, fileDifficulty))
 
     # Create filename
-    filename = "./graphs/{}/Game-{}_{}_{}.png".format(folderName, figureCount, fileRace, fileDifficulty)
+    filename = gamesFitnessFolder + "/Game-{}_{}_{}.png".format(figureCount, fileRace, fileDifficulty)
 
     # Save the plot
     plt.savefig(filename, bbox_inches="tight")
@@ -641,7 +641,7 @@ def graphFitnessAll(difficulty):
 
     # Graph all games
     plt.figure(figureCount)
-    filename = "./graphs/{}/0Fitness_Total.png".format(folderName)
+    filename = fitnessFolder + "/0Fitness_Total.png"
     for x, y, idx, race in totalAxis:
         plt.plot(x, y, label="Game-{}_{}".format(idx, race))
     plt.xlabel('Game Steps')
@@ -653,7 +653,7 @@ def graphFitnessAll(difficulty):
 
     # Graph terran games
     plt.figure(figureCount)
-    filename = "./graphs/{}/1Fitness_Terran.png".format(folderName)
+    filename = fitnessFolder + "/1Fitness_Terran.png"
     for x, y, idx, race in terranAxis:
         plt.plot(x, y, label="Game-{}".format(idx))
     plt.xlabel('Game Steps')
@@ -665,7 +665,7 @@ def graphFitnessAll(difficulty):
 
     # Graph zerg games
     plt.figure(figureCount)
-    filename = "./graphs/{}/2Fitness_Zerg.png".format(folderName)
+    filename = fitnessFolder + "/2Fitness_Zerg.png"
     for x, y, idx, race in zergAxis:
         plt.plot(x, y, label="Game-{}".format(idx))
     plt.xlabel('Game Steps')
@@ -677,7 +677,7 @@ def graphFitnessAll(difficulty):
 
     # Graph protoss games
     plt.figure(figureCount)
-    filename = "./graphs/{}/3Fitness_Protoss.png".format(folderName)
+    filename = fitnessFolder + "/3Fitness_Protoss.png"
     for x, y, idx, race in protossAxis:
         plt.plot(x, y, label="Game-{}".format(idx))
     plt.xlabel('Game Steps')
@@ -740,7 +740,7 @@ def graphWinLoss():
     plt.legend(loc="upper left", bbox_to_anchor=(1,1))
 
     plt.tight_layout()
-    plt.savefig("./graphs/{}/4WinLoss_Race.png".format(folderName))
+    plt.savefig(winLossFolder + "/12WinLoss_Race.png")
     figureCount += 1
 
 def graphAgentFreqIndividual(enemyRace, difficulty, idx):
@@ -789,7 +789,7 @@ def graphAgentFreqIndividual(enemyRace, difficulty, idx):
     # Integer based y-axis
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
-    plt.savefig("./graphs/{}/AgentFreq{}.png".format(folderName, idx), bbox_inches="tight")
+    plt.savefig(gamesAgentFolder + "/AgentFreq{}.png".format(idx), bbox_inches="tight")
     figureCount += 1
 
 def graphAgentFreqAll(difficulty):
@@ -803,7 +803,7 @@ def graphAgentFreqAll(difficulty):
         tick_label = list(agentFreq.keys())
         numAgents = list(range(1, len(agentFreq.keys())+1))
         plt.bar(numAgents, agentFreq.values(), tick_label = tick_label, width = 0.8)
-    filename = "./graphs/{}/5AgentFreq_Total.png".format(folderName)
+    filename = agentFolder + "/4AgentFreq_Total.png".format(folderName)
     plt.xticks(rotation=45, ha="right")
     plt.xlabel('Agents')
     plt.ylabel('Times used')
@@ -818,7 +818,7 @@ def graphAgentFreqAll(difficulty):
         tick_label = list(agentFreq.keys())
         numAgents = list(range(1, len(agentFreq.keys())+1))
         plt.bar(numAgents, agentFreq.values(), tick_label = tick_label, width = 0.8)
-    filename = "./graphs/{}/6AgentFreq_Terran.png".format(folderName)
+    filename = agentFolder + "/5AgentFreq_Terran.png".format(folderName)
     plt.xticks(rotation=45, ha="right")
     plt.xlabel('Agents')
     plt.ylabel('Times used')
@@ -833,7 +833,7 @@ def graphAgentFreqAll(difficulty):
         tick_label = list(agentFreq.keys())
         numAgents = list(range(1, len(agentFreq.keys())+1))
         plt.bar(numAgents, agentFreq.values(), tick_label = tick_label, width = 0.8)
-    filename = "./graphs/{}/7AgentFreq_Zerg.png".format(folderName)
+    filename = agentFolder + "/6AgentFreq_Zerg.png".format(folderName)
     plt.xticks(rotation=45, ha="right")
     plt.xlabel('Agents')
     plt.ylabel('Times used')
@@ -848,7 +848,7 @@ def graphAgentFreqAll(difficulty):
         tick_label = list(agentFreq.keys())
         numAgents = list(range(1, len(agentFreq.keys())+1))
         plt.bar(numAgents, agentFreq.values(), tick_label = tick_label, width = 0.8)
-    filename = "./graphs/{}/8AgentFreq_Protoss.png".format(folderName)
+    filename = agentFolder + "/7AgentFreq_Protoss.png".format(folderName)
     plt.xticks(rotation=45, ha="right")
     plt.xlabel('Agents')
     plt.ylabel('Times used')
@@ -903,7 +903,7 @@ def graphAgentStratIndividual(enemyRace, difficulty, idx):
     # Integer based y-axis
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
-    plt.savefig("./graphs/{}/agentStrat{}.png".format(folderName, idx), bbox_inches="tight")
+    plt.savefig(gamesStrategyFolder + "/agentStrat{}.png".format(folderName, idx), bbox_inches="tight")
     figureCount += 1
 
 def graphAgentStratAll(difficulty):
@@ -917,9 +917,9 @@ def graphAgentStratAll(difficulty):
         tick_label = list(agentStrat.keys())
         numAgents = list(range(1, len(agentStrat.keys())+1))
         plt.bar(numAgents, agentStrat.values(), tick_label = tick_label, width = 0.8)
-    filename = "./graphs/{}/9AgentStrat_Total.png".format(folderName)
+    filename = strategyFolder + "/8AgentStrat_Total.png"
     plt.xticks(rotation=45, ha="right")
-    plt.xlabel('Agents')
+    plt.xlabel('Strategies')
     plt.ylabel('Times used')
     plt.title('Agent Strategy Total')
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -932,9 +932,9 @@ def graphAgentStratAll(difficulty):
         tick_label = list(agentStrat.keys())
         numAgents = list(range(1, len(agentStrat.keys())+1))
         plt.bar(numAgents, agentStrat.values(), tick_label = tick_label, width = 0.8)
-    filename = "./graphs/{}/10AgentStrat_Terran.png".format(folderName)
+    filename = strategyFolder + "/9AgentStrat_Terran.png"
     plt.xticks(rotation=45, ha="right")
-    plt.xlabel('Agents')
+    plt.xlabel('Strategies')
     plt.ylabel('Times used')
     plt.title('Agent Strategy Total')
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -947,9 +947,9 @@ def graphAgentStratAll(difficulty):
         tick_label = list(agentStrat.keys())
         numAgents = list(range(1, len(agentStrat.keys())+1))
         plt.bar(numAgents, agentStrat.values(), tick_label = tick_label, width = 0.8)
-    filename = "./graphs/{}/11AgentStrat_Zerg.png".format(folderName)
+    filename = strategyFolder + "/10AgentStrat_Zerg.png"
     plt.xticks(rotation=45, ha="right")
-    plt.xlabel('Agents')
+    plt.xlabel('Strategies')
     plt.ylabel('Times used')
     plt.title('Agent Strategy Total')
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -962,9 +962,9 @@ def graphAgentStratAll(difficulty):
         tick_label = list(agentStrat.keys())
         numAgents = list(range(1, len(agentStrat.keys())+1))
         plt.bar(numAgents, agentStrat.values(), tick_label = tick_label, width = 0.8)
-    filename = "./graphs/{}/12AgentStrat_Protoss.png".format(folderName)
+    filename = strategyFolder + "/11AgentStrat_Protoss.png"
     plt.xticks(rotation=45, ha="right")
-    plt.xlabel('Agents')
+    plt.xlabel('Strategies')
     plt.ylabel('Times used')
     plt.title('Agent Strategy Total')
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -1039,10 +1039,55 @@ def main():
     if not os.path.exists("./graphs"):
         os.mkdir("./graphs")
 
-    # Make subfolder for game session
+    global fitnessFolder
+    global agentFolder
+    global strategyFolder
+    global gamesFitnessFolder
+    global gamesAgentFolder
+    global gamesStrategyFolder
+    global winLossFolder
+
+    # Make subfolder for game session in graph
     folderName = strftime("%Y-%m-%d %H%M%S", localtime())
     if not os.path.exists("./graphs/{}".format(folderName)):
         os.mkdir("./graphs/{}".format(folderName))
+
+    # Create subfolders for inside game session
+    fitnessFolder = "./graphs/{}/0fitness".format(folderName)
+    agentFolder = "./graphs/{}/1agent".format(folderName)
+    strategyFolder = "./graphs/{}/2strategy".format(folderName)
+    winLossFolder = "./graphs/{}/3winloss".format(folderName)
+    gamesFitnessFolder = "./graphs/{}/4games_fitness".format(folderName)
+    gamesAgentFolder = "./graphs/{}/5games_agent".format(folderName)
+    gamesStrategyFolder = "./graphs/{}/6games_strategy".format(folderName)
+
+    # Make subfolder for fitness
+    if not os.path.exists(fitnessFolder):
+        os.mkdir(fitnessFolder)
+    
+    # Make subfolder for agent
+    if not os.path.exists(agentFolder):
+        os.mkdir(agentFolder)
+
+    # Make subfolder for strategy
+    if not os.path.exists(strategyFolder):
+        os.mkdir(strategyFolder)
+
+    #Make subfolder for winloss
+    if not os.path.exists(winLossFolder):
+        os.mkdir(winLossFolder)
+
+    # Make subfolder for games of fitness
+    if not os.path.exists(gamesFitnessFolder):
+        os.mkdir(gamesFitnessFolder)
+    
+    # Make subfolder for games of agent
+    if not os.path.exists(gamesAgentFolder):
+        os.mkdir(gamesAgentFolder)
+
+    # Make subfolder for games of strategy
+    if not os.path.exists(gamesStrategyFolder):
+        os.mkdir(gamesStrategyFolder)
 
     # Read command line arguments
     args = readArguments()
