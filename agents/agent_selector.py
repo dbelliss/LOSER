@@ -57,7 +57,7 @@ class AgentSelector(LoserAgent):
 
         # Number of strategies
         self.strategies = Strategies
-        self.nStrategies = len(Strategies)
+        self.nStrategies = 11
 
         # Choose RandomStrategy
         self.chooseRandomStrategy()
@@ -86,7 +86,7 @@ class AgentSelector(LoserAgent):
         print(bcolors.OKGREEN + "###RandomBuildIndex: {}".format(self.agents[self.curAgentIndex]) + bcolors.ENDC)
 
     def chooseRandomStrategy(self):
-        self.strategiesIndex = random.randint(0, self.nStrategies-1)
+        self.strategiesIndex = random.randint(0, self.nStrategies)
         print(bcolors.OKGREEN + "###RandomStrategyIndex: {}".format(self.strategiesIndex) + bcolors.ENDC)
 
     def total_worker_count(self):
@@ -908,7 +908,7 @@ def graphStratFreqIndividual(enemyRace, difficulty, idx):
 
 def graphStratFreqAll(difficulty):
     global figureCount
-    
+
     fileDifficulty = str(difficulty).split(".")[1]
 
     # Graph all games
@@ -1064,7 +1064,7 @@ def main():
     # Make subfolder for fitness
     if not os.path.exists(fitnessFolder):
         os.mkdir(fitnessFolder)
-    
+
     # Make subfolder for agent
     if not os.path.exists(agentFolder):
         os.mkdir(agentFolder)
@@ -1080,7 +1080,7 @@ def main():
     # Make subfolder for games of fitness
     if not os.path.exists(gamesFitnessFolder):
         os.mkdir(gamesFitnessFolder)
-    
+
     # Make subfolder for games of agent
     if not os.path.exists(gamesAgentFolder):
         os.mkdir(gamesAgentFolder)
