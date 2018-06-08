@@ -590,25 +590,27 @@ def checkNParseArgs(args):
     return (race, difficulty, number)
 
 def graphLineIndividual(enemyRace, difficulty, idx):
+    global figureCount
+
     # Get string name from enum
     fileRace = str(enemyRace).split(".")[1]
     fileDifficulty = str(difficulty).split(".")[1]
 
     # Add axis to the total axis
-    totalAxis.append((xAxis, yAxis, idx, fileRace))
+    totalAxis.append((xAxis, yAxis, figureCount, fileRace))
 
     # Add axis to terran
     if fileRace == "Terran":
-        terranAxis.append((xAxis, yAxis, idx, fileRace))
+        terranAxis.append((xAxis, yAxis, figureCount, fileRace))
     # Add axis to zerg
     elif fileRace == "Zerg":
-        zergAxis.append((xAxis, yAxis, idx, fileRace))
+        zergAxis.append((xAxis, yAxis, figureCount, fileRace))
     # Add axis to protoss
     else:
-        protossAxis.append((xAxis, yAxis, idx, fileRace))
+        protossAxis.append((xAxis, yAxis, figureCount, fileRace))
 
     # Separate each game
-    plt.figure(idx)
+    plt.figure(figureCount)
 
     # Plot the points
     plt.plot(xAxis, yAxis)
@@ -619,13 +621,15 @@ def graphLineIndividual(enemyRace, difficulty, idx):
     plt.ylabel('Fitness Score')
 
     # Give a title to the graph
-    plt.title("Game-{}_{}_{}".format(idx, fileRace, fileDifficulty))
+    plt.title("Game-{}_{}_{}".format(figureCount, fileRace, fileDifficulty))
 
     # Create filename
-    filename = "./graphs/{}/Game-{}_{}_{}.png".format(folderName, idx, fileRace, fileDifficulty)
+    filename = "./graphs/{}/Game-{}_{}_{}.png".format(folderName, figureCount, fileRace, fileDifficulty)
 
     # Save the plot
     plt.savefig(filename, bbox_inches="tight")
+
+    figureCount += 1
 
 def graphLineAll(difficulty):
     global figureCount
@@ -736,6 +740,30 @@ def graphWinLoss():
     plt.savefig("./graphs/{}/4WinLoss_Race.png".format(folderName))
     figureCount += 1
 
+def graphAgentFreqIndividual(idx):
+    global figureCount
+    
+    # Agent Frequency individual games
+    plt.figure(figureCount)
+
+    # labels for bars
+    tick_label = list(agentFreq.keys())
+
+    # plotting a bar chart
+    plt.bar(list(range(1, len(agentFreq.keys())+1)), agentFreq.values(), tick_label = tick_label, width = 0.8)
+
+    plt.xticks(rotation=45, ha="right")
+
+    # naming the x-axis
+    plt.xlabel('Agents')
+    # naming the y-axis
+    plt.ylabel('Times used')
+    # plot title
+    plt.title('Agent Frequency Game-{}'.format(idx))
+
+    plt.savefig("./graphs/{}/AgentFreq{}.png".format(folderName, idx), bbox_inches="tight")
+    figureCount += 1
+    
 
 def main():
     # Axis for graphing
@@ -830,7 +858,12 @@ def main():
 
         # Keep track of win/loss
         trackWinLoss(enemyRace, result)
+
+        # Put agent freq on the global list
         totalAgent.append(agentFreq)
+
+        # Graph individual agent frequencies
+        graphAgentFreqIndividual(idx)
 
         # Handles Ctrl-C exit
         try:
@@ -843,37 +876,10 @@ def main():
                 print(bcolors.FAIL + "Exiting Loop - Normal" + bcolors.ENDC)
                 break
 
-    # Keep track of number of figures
-    figureCount = number
-
     # Graph all for total and for each race
     graphLineAll(difficulty)
 
     graphWinLoss()
-
-
-#########
-    # Agent Frequency individual games
-    plt.figure(figureCount)
-
-    # labels for bars
-    tick_label = list(agentFreq.keys())
-
-    # plotting a bar chart
-    plt.bar(list(range(1, len(agentFreq.keys())+1)), agentFreq.values(), tick_label = tick_label, width = 0.8)
-
-    plt.xticks(rotation=45, ha="right")
-
-    # naming the x-axis
-    plt.xlabel('Agents')
-    # naming the y-axis
-    plt.ylabel('Times used')
-    # plot title
-    plt.title('Agent Frequency Game-{}'.format(0))
-
-    plt.savefig("./graphs/{}/5AgentFreq.png".format(folderName), bbox_inches="tight")
-    figureCount += 1
-#########
 
     os._exit(1)
 
