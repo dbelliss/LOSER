@@ -29,3 +29,5 @@ If you have already installed the Dentosal python-sc2 repository, go into the in
 * All agents derive from the base LoserAgent class
 * The agent that swaps between other agents is AgentSelector
 
+[I'm an inline-style link](./docs/ProjectReport.html)
+
