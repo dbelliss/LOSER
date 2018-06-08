@@ -597,17 +597,17 @@ def graphLineIndividual(enemyRace, difficulty, idx):
     fileDifficulty = str(difficulty).split(".")[1]
 
     # Add axis to the total axis
-    totalAxis.append((xAxis, yAxis, figureCount, fileRace))
+    totalAxis.append((xAxis, yAxis, idx, fileRace))
 
     # Add axis to terran
     if fileRace == "Terran":
-        terranAxis.append((xAxis, yAxis, figureCount, fileRace))
+        terranAxis.append((xAxis, yAxis, idx, fileRace))
     # Add axis to zerg
     elif fileRace == "Zerg":
-        zergAxis.append((xAxis, yAxis, figureCount, fileRace))
+        zergAxis.append((xAxis, yAxis, idx, fileRace))
     # Add axis to protoss
     else:
-        protossAxis.append((xAxis, yAxis, figureCount, fileRace))
+        protossAxis.append((xAxis, yAxis, idx, fileRace))
 
     # Separate each game
     plt.figure(figureCount)
@@ -740,8 +740,15 @@ def graphWinLoss():
     plt.savefig("./graphs/{}/4WinLoss_Race.png".format(folderName))
     figureCount += 1
 
-def graphAgentFreqIndividual(idx):
+def graphAgentFreqIndividual(enemyRace, difficulty, idx):
     global figureCount
+
+    # Get string name from enum
+    fileRace = str(enemyRace).split(".")[1]
+    fileDifficulty = str(difficulty).split(".")[1]
+
+    # Put agent freq on the global list
+    totalAgent.append((agentFreq, idx, fileRace))
     
     # Agent Frequency individual games
     plt.figure(figureCount)
@@ -786,7 +793,7 @@ def main():
     zergWinLoss = np.array([0, 0])
     protossWinLoss = np.array([0, 0])
 
-    # Agent for graphing
+    # Total for graphing all agent freq
     global totalAgent
     totalAgent = []
 
@@ -859,11 +866,8 @@ def main():
         # Keep track of win/loss
         trackWinLoss(enemyRace, result)
 
-        # Put agent freq on the global list
-        totalAgent.append(agentFreq)
-
         # Graph individual agent frequencies
-        graphAgentFreqIndividual(idx)
+        graphAgentFreqIndividual(enemyRace, difficulty, idx)
 
         # Handles Ctrl-C exit
         try:
