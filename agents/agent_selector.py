@@ -511,8 +511,10 @@ class AgentSelector(LoserAgent):
         # Add to agent frequency
         agentName = str(self.agents[self.curAgentIndex]).split(".")[1].split(" ")[0]
         agentFreq[agentName] += 1
-        # strategyname = str(self.strategies(self.strategiesIndex)).split(".")[1]
-        # agentFreq[strategyname] += 1
+
+        # Add to agent strategy
+        strategyname = str(self.strategies(self.strategiesIndex)).split(".")[1]
+        agentFreq[strategyname] += 1
 
 """
 Parse command line arguments
@@ -855,6 +857,55 @@ def graphAgentFreqAll(difficulty):
     plt.savefig(filename, bbox_inches="tight")
     figureCount += 1
 
+def graphAgentStratIndividual(enemyRace, difficulty, idx):
+    global figureCount
+
+    # Get string name from enum
+    fileRace = str(enemyRace).split(".")[1]
+    fileDifficulty = str(difficulty).split(".")[1]
+
+    # Put agent strat on the global list
+    totalAgentStrat.append((agentStrat, idx, fileRace))
+
+    # Add strat to terran
+    if fileRace == "Terran":
+        terranAgentStrat.append((agentStrat, idx, fileRace))
+    # Add strat to zerg
+    elif fileRace == "Zerg":
+        zergAgentStrat.append((agentStrat, idx, fileRace))
+    # Add strat to protoss
+    else:
+        protossAgentStrat.append((agentStrat, idx, fileRace))
+    
+    # Agent Strategy individual games
+    ax = plt.figure(figureCount).gca()
+
+    # labels for bars
+    tick_label = list(agentStrat.keys())
+
+    # Number of agents in used in the game
+    numAgents = list(range(1, len(agentStrat.keys())+1))
+
+    # plotting a bar chart
+    plt.bar(numAgents, agentStrat.values(), tick_label = tick_label, width = 0.8)
+
+    # Rotate the x labels
+    plt.xticks(rotation=45, ha="right")
+
+    # naming the x-axis
+    plt.xlabel('Agents')
+    # naming the y-axis
+    plt.ylabel('Times used')
+
+    # plot title
+    plt.title('Agent Strategy Game-{}'.format(idx))
+
+    # Integer based y-axis
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    plt.savefig("./graphs/{}/agentStrat{}.png".format(folderName, idx), bbox_inches="tight")
+    figureCount += 1
+
 
 def main():
     # Axis for graphing
@@ -877,7 +928,7 @@ def main():
     zergWinLoss = np.array([0, 0])
     protossWinLoss = np.array([0, 0])
 
-    # Total for graphing all agent freq
+    # Agent freq
     global totalAgentFreq
     global terranAgentFreq
     global zergAgentFreq
@@ -887,15 +938,29 @@ def main():
     zergAgentFreq = []
     protossAgentFreq = []
 
+    # Agent Freq values added when agent runs
+    global agentFreq
+    agentFreq = defaultdict(lambda: 0)
+
+    # Agent strat
+    global totalAgentStrat
+    global terranAgentStrat
+    global zergAgentStrat
+    global protossAgentStrat
+    totalAgentStrat = []
+    terranAgentStrat = []
+    zergAgentStrat = []
+    protossAgentStrat = []
+
+    # Agent Strat values added when agent runs
+    global agentStrat
+    agentStrat = defaultdict(lambda: 0)
+
     # x and y values added when agent runs
     global xAxis
     global yAxis
     xAxis = []
     yAxis = []
-
-    # Agent values added when agent runs
-    global agentFreq
-    agentFreq = defaultdict(lambda: 0)
 
     # directory to store graphs
     global folderName
@@ -958,6 +1023,9 @@ def main():
 
         # Graph individual agent frequencies
         graphAgentFreqIndividual(enemyRace, difficulty, idx)
+
+        # Graph individual agent strategies
+        graphAgentStratIndividual(enemyRace, difficulty, idx)
 
         # Handles Ctrl-C exit
         try:
