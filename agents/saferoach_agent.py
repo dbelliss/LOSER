@@ -166,6 +166,13 @@ class SafeRoachAgent(LoserAgent):
 
     async def basic_build(self, iteration):
 
+        hatchery = self.mainAgent.bases
+
+        if hatchery == None or hatchery.amount == 0:
+            return
+        else:
+            hatchery = self.mainAgent.bases.ready.random
+
         if iteration == 0:
             self.mainAgent.OG_hatchery = self.mainAgent.units(HATCHERY).first.tag
             # print("TAG IS ", self.mainAgent.OG_hatchery)

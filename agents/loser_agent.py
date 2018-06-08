@@ -229,7 +229,13 @@ class LoserAgent(sc2.BotAI):
     '''
     async def basic_build(self, iteration):
 
-        hatchery = self.mainAgent.bases.ready.random
+        hatchery = self.mainAgent.bases
+
+        if hatchery == None or hatchery.amount == 0:
+            return
+        else:
+            hatchery = self.mainAgent.bases.ready.random.ready.random
+
         # Build overlords if close to reaching cap
         if self.mainAgent.supply_used > self.mainAgent.supply_cap - 4 and self.mainAgent.num_larva > 0 and self.mainAgent.can_afford(OVERLORD):
             await self.mainAgent.do(self.mainAgent.random_larva.train(OVERLORD))

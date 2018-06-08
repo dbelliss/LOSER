@@ -52,6 +52,13 @@ class MutaliskAgent(LoserAgent):
 
     async def basic_build(self, iteration):
 
+        hatchery = self.mainAgent.bases
+
+        if hatchery == None or hatchery.amount == 0:
+            return
+        else:
+            hatchery = self.mainAgent.bases.ready.random
+
         firstbase = self.mainAgent.bases.ready.first
         larvae = self.mainAgent.units(LARVA)
 
