@@ -751,22 +751,30 @@ def graphAgentFreqIndividual(enemyRace, difficulty, idx):
     totalAgent.append((agentFreq, idx, fileRace))
     
     # Agent Frequency individual games
-    plt.figure(figureCount)
+    ax = plt.figure(figureCount).gca()
 
     # labels for bars
     tick_label = list(agentFreq.keys())
 
-    # plotting a bar chart
-    plt.bar(list(range(1, len(agentFreq.keys())+1)), agentFreq.values(), tick_label = tick_label, width = 0.8)
+    # Number of agents in used in the game
+    numAgents = list(range(1, len(agentFreq.keys())+1))
 
+    # plotting a bar chart
+    plt.bar(numAgents, agentFreq.values(), tick_label = tick_label, width = 0.8)
+
+    # Rotate the x labels
     plt.xticks(rotation=45, ha="right")
 
     # naming the x-axis
     plt.xlabel('Agents')
     # naming the y-axis
     plt.ylabel('Times used')
+
     # plot title
     plt.title('Agent Frequency Game-{}'.format(idx))
+
+    # Integer based y-axis
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
     plt.savefig("./graphs/{}/AgentFreq{}.png".format(folderName, idx), bbox_inches="tight")
     figureCount += 1
@@ -883,6 +891,7 @@ def main():
     # Graph all for total and for each race
     graphLineAll(difficulty)
 
+    # Graph win loss for each race
     graphWinLoss()
 
     os._exit(1)
