@@ -172,7 +172,7 @@ class AgentSelector(LoserAgent):
                 'ZerglingBurrowed': 'Zergling', 'BanelingBurrowed': 'Baneling', 'RoachBurrowed': 'Roach', 'RavagerBurrowed': 'Ravager', 'HydraliskBurrowed': 'Hydralisk', 'LurkerMPBurrowed': 'Lurker', 'LurkerMP': 'Lurker',
                 'InfestorBurrowed': 'Infestor', 'SwarmHostBurrowedMP': 'SwarmHostMP', 'UltraliskBurrowed': 'Ultralisk', 'LocustMPFlying': 'Locust', 'ChangelingMarine': 'Changeling', 'ChangelingZealot': 'Changeling',
                 'ChangelingZergling': 'Changeling', 'InfestorTerranBurrowed': 'InfestorTerran', 'OverlordTransport': 'Overlord', 'OverseerSiegeMode': 'Overseer', 'SpineCrawlerUprooted': 'SpineCrawler',
-                'SporeCrawlerUprooted': 'SporeCrawler', 'CreepTumorBurrowed': 'CreepTumor', 'ChangelingZerglingWings'
+                'SporeCrawlerUprooted': 'SporeCrawler', 'CreepTumorBurrowed': 'CreepTumor', 'ChangelingZerglingWings': 'Changeling'
             }
             ignored_units = ['Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg', 'CreepTumorQueen']
             # building lists for fitness
@@ -762,7 +762,7 @@ def graphAgentFreqIndividual(enemyRace, difficulty, idx):
     # Add freq to protoss
     else:
         protossAgentFreq.append((agentFreq, idx, fileRace))
-    
+
     # Agent Frequency individual games
     ax = plt.figure(figureCount).gca()
 
@@ -794,7 +794,7 @@ def graphAgentFreqIndividual(enemyRace, difficulty, idx):
 
 def graphAgentFreqAll(difficulty):
     global figureCount
-    
+
     fileDifficulty = str(difficulty).split(".")[1]
 
     # Graph all games
@@ -876,7 +876,7 @@ def graphAgentStratIndividual(enemyRace, difficulty, idx):
     # Add strat to protoss
     else:
         protossAgentStrat.append((agentStrat, idx, fileRace))
-    
+
     # Agent Strategy individual games
     ax = plt.figure(figureCount).gca()
 
