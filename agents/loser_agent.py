@@ -229,7 +229,13 @@ class LoserAgent(sc2.BotAI):
     '''
     async def basic_build(self, iteration):
 
-        hatchery = self.mainAgent.bases.ready.random
+        hatchery = self.mainAgent.bases
+
+        if hatchery == None or hatchery.amount == 0:
+            return
+        else:
+            hatchery = self.mainAgent.bases.ready.random.ready.random
+
         # Build overlords if close to reaching cap
         if self.mainAgent.supply_used > self.mainAgent.supply_cap - 4 and self.mainAgent.num_larva > 0 and self.mainAgent.can_afford(OVERLORD):
             await self.mainAgent.do(self.mainAgent.random_larva.train(OVERLORD))
@@ -328,6 +334,13 @@ class LoserAgent(sc2.BotAI):
         if self.mainAgent.predicted_enemy_position_num == -1:
             # Initializing things that are needed after game data is loaded
 
+            # Prevent game from crashing
+            hatchery = self.mainAgent.bases
+            if hatchery == None or hatchery.amount == 0:
+                return
+            else:
+                hatchery = self.mainAgent.bases.ready.random
+                
             # Assume first position
             self.mainAgent.predicted_enemy_position = 0
             self.mainAgent.num_enemy_positions = len(self.mainAgent.enemy_start_locations)
@@ -361,6 +374,14 @@ class LoserAgent(sc2.BotAI):
             return
 
         # Call the proper strategy function
+
+
+        # Prevent game from crashing
+        hatchery = self.mainAgent.bases
+        if hatchery == None or hatchery.amount == 0:
+            return
+        else:
+            hatchery = self.mainAgent.bases.ready.random
 
         # Attack
         if strategy == Strategies.HEAVY_ATTACK:

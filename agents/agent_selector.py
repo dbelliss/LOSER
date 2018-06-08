@@ -728,6 +728,8 @@ def graphWinLoss():
     barWinLoss = list(zip(terranWinLoss, zergWinLoss, protossWinLoss))
 
     # create plot
+    ax = plt.figure(figureCount).gca()
+    
     plt.subplots()
     index = np.arange(n_groups)
     bar_width = 0.35
@@ -735,7 +737,7 @@ def graphWinLoss():
     plt.bar(index, barWinLoss[0], bar_width, label='Win')
     plt.bar(index + bar_width, barWinLoss[1], bar_width,label='Loss')
 
-    ax = plt.figure(figureCount).gca()
+
     plt.xlabel('Races')
     plt.ylabel('Win/Loss')
     plt.title('Win/Loss by race')
