@@ -172,9 +172,9 @@ class AgentSelector(LoserAgent):
                 'ZerglingBurrowed': 'Zergling', 'BanelingBurrowed': 'Baneling', 'RoachBurrowed': 'Roach', 'RavagerBurrowed': 'Ravager', 'HydraliskBurrowed': 'Hydralisk', 'LurkerMPBurrowed': 'Lurker', 'LurkerMP': 'Lurker',
                 'InfestorBurrowed': 'Infestor', 'SwarmHostBurrowedMP': 'SwarmHostMP', 'UltraliskBurrowed': 'Ultralisk', 'LocustMPFlying': 'Locust', 'ChangelingMarine': 'Changeling', 'ChangelingZealot': 'Changeling',
                 'ChangelingZergling': 'Changeling', 'InfestorTerranBurrowed': 'InfestorTerran', 'OverlordTransport': 'Overlord', 'OverseerSiegeMode': 'Overseer', 'SpineCrawlerUprooted': 'SpineCrawler',
-                'SporeCrawlerUprooted': 'SporeCrawler', 'CreepTumorBurrowed': 'CreepTumor'
+                'SporeCrawlerUprooted': 'SporeCrawler', 'CreepTumorBurrowed': 'CreepTumor', 'ChangelingZerglingWings'
             }
-            ignored_units = ['Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg']
+            ignored_units = ['Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg', 'CreepTumorQueen']
             # building lists for fitness
             defensive_buildings = {'SpineCrawler': 0, 'SporeCrawler': 0} #TODO what do we do with the uprooted ones
             production_buildings = {' ': 0}
@@ -189,12 +189,13 @@ class AgentSelector(LoserAgent):
                 'Queen', 'Zergling', 'Baneling', 'Roach', 'Ravager', 'Hydralisk', 'Lurker', 'Infestor', 'SwarmHostMP', 'Ultralisk',
                 'LocustMP', 'Broodling', 'BroodlingEscort', 'Changeling', 'InfestorTerran', 'Overlord', 'Overseer', 'Mutalisk', 'Corruptor', 'BroodLord', 'Viper',
                 'QueenBurrowed', 'ZerglingBurrowed', 'BanelingBurrowed', 'RoachBurrowed', 'RavagerBurrowed', 'HydraliskBurrowed', 'LurkerMPBurrowed', 'LurkerMP',
-                'InfestorBurrowed', 'SwarmHostBurrowedMP', 'UltraliskBurrowed', 'LocustMPFlying', 'ChangelingMarine', 'ChangelingZealot', 'ChangelingZergling', 'InfestorTerranBurrowed'
+                'InfestorBurrowed', 'SwarmHostBurrowedMP', 'UltraliskBurrowed', 'LocustMPFlying', 'ChangelingMarine', 'ChangelingZealot', 'ChangelingZergling', 'InfestorTerranBurrowed',
+                'ChangelingZerglingWings'
             ]
             workers = {'Drone': 0, 'DroneBurrowed': 0}
             fitness_ignored = [
                 'Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg', 'Cocoon', 'RavagerCocoon', 'BanelingCocoon', 'OverlordCocoon', 'BroodLordCocoon', 'TransportOverlordCocoon',
-                'CreepTumor', 'CreepTumorBurrowed'
+                'CreepTumor', 'CreepTumorBurrowed', 'CreepTumorQueen'
             ]
         else:
             unit_names = [
