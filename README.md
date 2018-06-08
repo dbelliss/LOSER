@@ -17,7 +17,7 @@ Note: Make sure you install all dependencies to the right python version
 * `pip3 install --upgrade tensorflow`
 * `pip3 install keras`
 * `pip3 install matplotlib`
-* `pip3 install numpy
+* `pip3 install numpy`
 * Ubuntu: `sudo apt-get install python3-tk`, Arch:`sudo pacman -S tk`, or the equivalent to your linux system
 
 ### Install pysc2
