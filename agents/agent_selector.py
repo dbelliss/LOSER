@@ -174,7 +174,7 @@ class AgentSelector(LoserAgent):
                 'ChangelingZergling': 'Changeling', 'InfestorTerranBurrowed': 'InfestorTerran', 'OverlordTransport': 'Overlord', 'OverseerSiegeMode': 'Overseer', 'SpineCrawlerUprooted': 'SpineCrawler',
                 'SporeCrawlerUprooted': 'SporeCrawler', 'CreepTumorBurrowed': 'CreepTumor', 'ChangelingZerglingWings'
             }
-            ignored_units = ['Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg']
+            ignored_units = ['Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg', 'CreepTumorQueen']
             # building lists for fitness
             defensive_buildings = {'SpineCrawler': 0, 'SporeCrawler': 0} #TODO what do we do with the uprooted ones
             production_buildings = {' ': 0}
@@ -195,7 +195,7 @@ class AgentSelector(LoserAgent):
             workers = {'Drone': 0, 'DroneBurrowed': 0}
             fitness_ignored = [
                 'Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg', 'Cocoon', 'RavagerCocoon', 'BanelingCocoon', 'OverlordCocoon', 'BroodLordCocoon', 'TransportOverlordCocoon',
-                'CreepTumor', 'CreepTumorBurrowed'
+                'CreepTumor', 'CreepTumorBurrowed', 'CreepTumorQueen'
             ]
         else:
             unit_names = [
