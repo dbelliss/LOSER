@@ -96,7 +96,7 @@ Possible builds an agent can use are:
 * Hydralisk and Zergling
 * Zergling and Baneling
 
-## Bot Performance
+## LOSER's Performance
 ### Graphs
 After completing a game, graphs will automatically be generated along the following respective path: `LOSER/agents/graphs/` which will have a directory with the time stamp from when you ran the bot. Inside that directory you will find more information about the bot performance including overall fitness, overall agent and strategy selection, win loss ratio, and individual game statistics on fitness, agent selections, and strategies.
 
