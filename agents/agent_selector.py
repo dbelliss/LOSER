@@ -172,7 +172,7 @@ class AgentSelector(LoserAgent):
                 'ZerglingBurrowed': 'Zergling', 'BanelingBurrowed': 'Baneling', 'RoachBurrowed': 'Roach', 'RavagerBurrowed': 'Ravager', 'HydraliskBurrowed': 'Hydralisk', 'LurkerMPBurrowed': 'Lurker', 'LurkerMP': 'Lurker',
                 'InfestorBurrowed': 'Infestor', 'SwarmHostBurrowedMP': 'SwarmHostMP', 'UltraliskBurrowed': 'Ultralisk', 'LocustMPFlying': 'Locust', 'ChangelingMarine': 'Changeling', 'ChangelingZealot': 'Changeling',
                 'ChangelingZergling': 'Changeling', 'InfestorTerranBurrowed': 'InfestorTerran', 'OverlordTransport': 'Overlord', 'OverseerSiegeMode': 'Overseer', 'SpineCrawlerUprooted': 'SpineCrawler',
-                'SporeCrawlerUprooted': 'SporeCrawler', 'CreepTumorBurrowed': 'CreepTumor'
+                'SporeCrawlerUprooted': 'SporeCrawler', 'CreepTumorBurrowed': 'CreepTumor', 'ChangelingZerglingWings'
             }
             ignored_units = ['Larva', 'Egg', 'LurkerMPEgg', 'InfestedTerransEgg']
             # building lists for fitness
@@ -189,7 +189,8 @@ class AgentSelector(LoserAgent):
                 'Queen', 'Zergling', 'Baneling', 'Roach', 'Ravager', 'Hydralisk', 'Lurker', 'Infestor', 'SwarmHostMP', 'Ultralisk',
                 'LocustMP', 'Broodling', 'BroodlingEscort', 'Changeling', 'InfestorTerran', 'Overlord', 'Overseer', 'Mutalisk', 'Corruptor', 'BroodLord', 'Viper',
                 'QueenBurrowed', 'ZerglingBurrowed', 'BanelingBurrowed', 'RoachBurrowed', 'RavagerBurrowed', 'HydraliskBurrowed', 'LurkerMPBurrowed', 'LurkerMP',
-                'InfestorBurrowed', 'SwarmHostBurrowedMP', 'UltraliskBurrowed', 'LocustMPFlying', 'ChangelingMarine', 'ChangelingZealot', 'ChangelingZergling', 'InfestorTerranBurrowed'
+                'InfestorBurrowed', 'SwarmHostBurrowedMP', 'UltraliskBurrowed', 'LocustMPFlying', 'ChangelingMarine', 'ChangelingZealot', 'ChangelingZergling', 'InfestorTerranBurrowed',
+                'ChangelingZerglingWings'
             ]
             workers = {'Drone': 0, 'DroneBurrowed': 0}
             fitness_ignored = [
@@ -749,7 +750,7 @@ def graphAgentFreqIndividual(enemyRace, difficulty, idx):
 
     # Put agent freq on the global list
     totalAgent.append((agentFreq, idx, fileRace))
-    
+
     # Agent Frequency individual games
     ax = plt.figure(figureCount).gca()
 
@@ -778,7 +779,7 @@ def graphAgentFreqIndividual(enemyRace, difficulty, idx):
 
     plt.savefig("./graphs/{}/AgentFreq{}.png".format(folderName, idx), bbox_inches="tight")
     figureCount += 1
-    
+
 
 def main():
     # Axis for graphing
